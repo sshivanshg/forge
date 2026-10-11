@@ -2,6 +2,8 @@
 
 > A scalable Render/Railway-like platform that automatically builds, containerizes, deploys, monitors, and manages applications from GitHub repositories, built with Java 21 + Spring Boot and cloud-native infrastructure.
 
+> **Scope updates (2026-10-11):** Forge is an **agentic** platform, and **Kubernetes is dropped**. See the [Decision Log](docs/DECISIONS.md), which overrides the other docs until they are updated.
+
 **Problem statement:** Design and Development of a Scalable Cloud-Native Application Deployment and Orchestration Platform.
 
 ```
@@ -20,6 +22,7 @@ GitHub Repo ─► Build Queue ─► Build Worker ─► Docker Image ─► Re
 | 6 | [Roadmap](docs/06-roadmap.md) | Day 0 through week 12, with a checklist for each week |
 | 7 | [Engineering Standards](docs/07-engineering-standards.md) | Coding rules, testing, git workflow, and CI |
 | 8 | [Viva / Demo Guide](docs/08-viva-guide.md) | How to explain the system end to end, plus likely questions |
+| — | [Decision Log](docs/DECISIONS.md) | Scope changes, newest first. Wins over the other docs. |
 
 ## Locked scope
 
