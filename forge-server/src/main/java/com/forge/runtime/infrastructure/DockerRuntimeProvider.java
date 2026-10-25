@@ -61,6 +61,9 @@ class DockerRuntimeProvider implements RuntimeProvider {
               .withMemory(properties.memoryMb() * 1024L * 1024L)
               .withNanoCPUs((long) (properties.cpus() * 1_000_000_000L))
               .withPidsLimit(256L)
+              // A tiny init (tini) as PID 1 forwards SIGTERM to the app, so it can shut down
+              // gracefully during a blue-green swap instead of being SIGKILLed mid-request.
+              .withInit(true)
               .withSecurityOpts(List.of("no-new-privileges"))
               .withRestartPolicy(RestartPolicy.noRestart())
               .withPortBindings(

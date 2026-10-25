@@ -1,0 +1,25 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "forge-server",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./mvnw -B -pl forge-server spring-boot:run -Dspring-boot.run.workingDirectory=."
+      ],
+      "port": 8080
+    },
+    {
+      "name": "forge-dashboard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "forge-dashboard",
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    }
+  ]
+}

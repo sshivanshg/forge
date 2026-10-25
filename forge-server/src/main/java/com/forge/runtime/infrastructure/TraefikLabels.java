@@ -26,6 +26,12 @@ final class TraefikLabels {
     labels.put(router + ".rule", "Host(`" + spec.routeHost() + "`)");
     labels.put(router + ".entrypoints", "web");
     labels.put(router + ".service", spec.routeName());
+    // During a blue-green swap one instance may still be booting (green) or shutting down (blue).
+    // A connection error is then retried on the other instance, so visitors never see it.
+    String retry = spec.routeName() + "-retry";
+    labels.put("traefik.http.middlewares." + retry + ".retry.attempts", "5");
+    labels.put("traefik.http.middlewares." + retry + ".retry.initialinterval", "200ms");
+    labels.put(router + ".middlewares", retry);
     labels.put(service + ".loadbalancer.server.port", Integer.toString(spec.port()));
     labels.put(service + ".loadbalancer.healthcheck.path", spec.healthPath());
     labels.put(service + ".loadbalancer.healthcheck.interval", "2s");

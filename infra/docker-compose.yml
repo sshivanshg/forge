@@ -35,12 +35,14 @@ services:
 
   # Reverse proxy for user apps. Discovers containers through Docker labels set by Forge.
   traefik:
-    image: traefik:v3.5
+    image: traefik:v3.6
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=forge-apps
       - --entrypoints.web.address=:80
+      # Fail fast when a container disappears mid-swap, so the retry middleware moves on quickly
+      - --serversTransport.forwardingTimeouts.dialTimeout=1s
       - --api.dashboard=true
       - --api.insecure=true
       - --log.level=INFO
