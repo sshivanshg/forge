@@ -1,0 +1,69 @@
+# Forge local infrastructure (Milestone 1).
+#
+#   docker compose -f infra/docker-compose.yml up -d
+#
+# forge-server runs on the host (IDE or ./mvnw) and talks to these containers.
+# User apps deployed by Forge join the `forge-apps` network and are routed by Traefik
+# at http://<project-slug>.localhost
+name: forge
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: forge
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: forge
+    ports:
+      - "5433:5432" # 5433 on the host so it never clashes with a local Postgres
+    volumes:
+      - forge-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge -d forge"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Image registry that build workers push to and the runtime pulls from.
+  # 5001 because macOS uses 5000 for AirPlay. Docker treats localhost registries as trusted.
+  registry:
+    image: registry:2
+    ports:
+      - "5001:5000"
+    volumes:
+      - forge-registry:/var/lib/registry
+
+  # Reverse proxy for user apps. Discovers containers through Docker labels set by Forge.
+  traefik:
+    image: traefik:v3.5
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=forge-apps
+      - --entrypoints.web.address=:80
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --log.level=INFO
+    ports:
+      - "80:80" # http://<slug>.localhost
+      - "8081:8080" # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - default
+      - forge-apps
+
+  # Fake SMTP server: deployment notification emails show up at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+networks:
+  forge-apps:
+    name: forge-apps
+
+volumes:
+  forge-pg:
+  forge-registry:

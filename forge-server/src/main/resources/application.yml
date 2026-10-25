@@ -1,0 +1,100 @@
+# Non-secret defaults. Secrets come from environment variables, or locally from a git-ignored
+# .env file (see .env.example at the repository root).
+spring:
+  application:
+    name: forge
+  config:
+    import:
+      - optional:file:./.env[.properties]
+      - optional:file:../.env[.properties]
+  threads:
+    virtual:
+      enabled: true # Java 21 virtual threads for request handling, @Async and scheduling
+  datasource:
+    url: ${FORGE_DB_URL:jdbc:postgresql://localhost:5433/forge}
+    username: ${FORGE_DB_USER:forge}
+    password: ${FORGE_DB_PASSWORD:forge}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate # Flyway owns the schema; Hibernate only checks it matches the entities
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  mail:
+    host: ${FORGE_SMTP_HOST:localhost}
+    port: ${FORGE_SMTP_PORT:1025}
+  mvc:
+    async:
+      request-timeout: -1 # Server-Sent Event streams stay open as long as needed
+  jackson:
+    default-property-inclusion: always
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    mail:
+      enabled: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  pattern:
+    level: "%5p [corr=%X{correlationId:-} dep=%X{deploymentId:-}]"
+
+forge:
+  crypto:
+    encryption-key: ${FORGE_ENCRYPTION_KEY}
+  identity:
+    jwt-secret: ${FORGE_JWT_SECRET}
+    access-token-ttl: 15m
+    refresh-token-ttl: 30d
+  web:
+    allowed-origins: ${FORGE_ALLOWED_ORIGINS:http://localhost:3000}
+  apps:
+    base-domain: ${FORGE_APPS_DOMAIN:localhost}
+    scheme: http
+    public-port: 80
+  github:
+    client-id: ${FORGE_GITHUB_CLIENT_ID:}
+    client-secret: ${FORGE_GITHUB_CLIENT_SECRET:}
+    webhook-secret: ${FORGE_GITHUB_WEBHOOK_SECRET:}
+    callback-url: ${FORGE_GITHUB_CALLBACK_URL:http://localhost:8080/api/v1/github/callback}
+    dashboard-url: ${FORGE_DASHBOARD_URL:http://localhost:3000}
+    git-base-url: ${FORGE_GIT_BASE_URL:https://github.com}
+  jobs:
+    poll-interval: 2s
+    lease: 5m
+    max-concurrent: 2
+  build:
+    registry: ${FORGE_REGISTRY:localhost:5001}
+    timeout: 10m
+    workspace-dir: ${FORGE_WORKSPACE_DIR:${java.io.tmpdir}/forge-builds}
+  runtime:
+    network: forge-apps
+    memory-mb: 512
+    cpus: 1.0
+  deploy:
+    health-timeout: 90s
+    drain-delay: 3s
+  notifications:
+    enabled: true
+    from: forge@localhost
+    dashboard-url: ${FORGE_DASHBOARD_URL:http://localhost:3000}
+  agent:
+    anthropic-api-key: ${ANTHROPIC_API_KEY:}
+    model: ${FORGE_AGENT_MODEL:claude-sonnet-5-5}
