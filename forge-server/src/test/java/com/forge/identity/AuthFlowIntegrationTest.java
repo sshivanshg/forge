@@ -77,7 +77,8 @@ class AuthFlowIntegrationTest extends AbstractIntegrationTest {
     mvc.perform(
             post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"not-an-email\",\"password\":\"short\",\"displayName\":\"\"}"))
+                .content(
+                    "{\"email\":\"not-an-email\",\"password\":\"short\",\"displayName\":\"\"}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
         .andExpect(jsonPath("$.errors.length()").value(3))

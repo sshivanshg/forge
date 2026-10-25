@@ -51,7 +51,8 @@ class DeploymentStatusTest {
 
   @Test
   void onlyPipelineStatesCountAsInProgress() {
-    assertThat(EnumSet.allOf(DeploymentStatus.class).stream().filter(DeploymentStatus::isInProgress))
+    assertThat(
+            EnumSet.allOf(DeploymentStatus.class).stream().filter(DeploymentStatus::isInProgress))
         .containsExactlyInAnyOrder(BUILDING, DEPLOYING, HEALTH_CHECKING);
   }
 }

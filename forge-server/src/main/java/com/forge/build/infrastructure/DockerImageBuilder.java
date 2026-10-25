@@ -17,10 +17,11 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import org.springframework.stereotype.Component;
 
-/** Adapter: {@link ImageBuilder} on the Docker Engine API (docker-java). */
-@Component
+/**
+ * Adapter: {@link ImageBuilder} on the Docker Engine API (docker-java). Registered through {@link
+ * ImageBuilderConfig}, wrapped in a retrying decorator.
+ */
 class DockerImageBuilder implements ImageBuilder {
 
   private static final Duration PUSH_TIMEOUT = Duration.ofMinutes(5);

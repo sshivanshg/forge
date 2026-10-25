@@ -1,0 +1,9 @@
+{
+  "name": "hello-node",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tiny demo app deployed by Forge",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

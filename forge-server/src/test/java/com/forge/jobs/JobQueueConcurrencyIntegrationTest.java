@@ -93,7 +93,8 @@ class JobQueueConcurrencyIntegrationTest extends AbstractIntegrationTest {
     queue.enqueue(JobType.BUILD, new Payload(UUID.randomUUID()), "crashy");
     Job job = queue.claim("crashed-worker", Duration.ofMinutes(5)).orElseThrow();
     // simulate the worker dying: its lease runs out without heartbeats
-    jdbc.update("update jobs set locked_until = now() - interval '1 second' where id = ?", job.id());
+    jdbc.update(
+        "update jobs set locked_until = now() - interval '1 second' where id = ?", job.id());
 
     List<Job> dead = queue.reapExpiredLeases();
 

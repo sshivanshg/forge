@@ -35,7 +35,10 @@ class BuildChainTest {
     Files.writeString(repo.resolve("pom.xml"), "<project/>");
     Files.writeString(repo.resolve("package.json"), "{}");
 
-    context.run(ctx -> assertThat(ctx.getBean(DetectorChain.class).detect(repo)).isEqualTo(BuildType.DOCKERFILE));
+    context.run(
+        ctx ->
+            assertThat(ctx.getBean(DetectorChain.class).detect(repo))
+                .isEqualTo(BuildType.DOCKERFILE));
   }
 
   @Test
@@ -63,7 +66,9 @@ class BuildChainTest {
             assertThatThrownBy(() -> ctx.getBean(DetectorChain.class).detect(repo))
                 .isInstanceOfSatisfying(
                     BuildFailedException.class,
-                    e -> assertThat(e.reason()).isEqualTo(BuildFailedException.Reason.UNSUPPORTED_PROJECT)));
+                    e ->
+                        assertThat(e.reason())
+                            .isEqualTo(BuildFailedException.Reason.UNSUPPORTED_PROJECT)));
   }
 
   @Test
@@ -79,7 +84,10 @@ class BuildChainTest {
           BuildStrategy node = ctx.getBean(BuildStrategyFactory.class).forType(BuildType.NODE);
           Path dockerfile = node.prepare(repo, 3000);
           String content = Files.readString(dockerfile);
-          assertThat(content).contains("FROM node:22-alpine").contains("PORT=3000").contains("EXPOSE 3000");
+          assertThat(content)
+              .contains("FROM node:22-alpine")
+              .contains("PORT=3000")
+              .contains("EXPOSE 3000");
           assertThat(content).doesNotContain("{{PORT}}");
         });
   }
@@ -89,7 +97,8 @@ class BuildChainTest {
     context.run(
         ctx -> {
           BuildStrategyFactory factory = ctx.getBean(BuildStrategyFactory.class);
-          for (BuildType type : List.of(BuildType.DOCKERFILE, BuildType.MAVEN, BuildType.GRADLE, BuildType.NODE)) {
+          for (BuildType type :
+              List.of(BuildType.DOCKERFILE, BuildType.MAVEN, BuildType.GRADLE, BuildType.NODE)) {
             assertThat(factory.forType(type).type()).isEqualTo(type);
           }
         });
@@ -100,7 +109,10 @@ class BuildChainTest {
     context.run(
         ctx ->
             assertThatThrownBy(
-                    () -> ctx.getBean(BuildStrategyFactory.class).forType(BuildType.DOCKERFILE).prepare(repo, 8080))
+                    () ->
+                        ctx.getBean(BuildStrategyFactory.class)
+                            .forType(BuildType.DOCKERFILE)
+                            .prepare(repo, 8080))
                 .isInstanceOf(BuildFailedException.class));
   }
 }

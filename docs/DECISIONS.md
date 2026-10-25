@@ -4,6 +4,22 @@ Scope decisions, newest first. **When a decision here conflicts with another doc
 
 ---
 
+## D-003 — Scope frozen for the November evaluation (2026-10-26)
+
+**Context:** the final evaluation moved to the first week of November and is assessed on the 10 LLD criteria (requirements, class diagram, OOP, SOLID, patterns, sequence/activity diagrams, API design, DB schema, error handling, working implementation that matches the design exactly).
+
+**Decision:** build and present **Milestone 1 plus the agent** only. Kafka, Redis, AWS, autoscaling and Kubernetes become "future work" in [02 §8](02-architecture.md#8-how-it-would-scale-future-work-not-built). The docs were restructured to follow the rubric (01 requirements … 07 error handling) and rewritten to describe exactly what the code does.
+
+**Technical choices made while building:**
+- **Spring Boot 3.5.16** (latest 3.x, matches the locked scope). start.spring.io now only offers 4.x.
+- **Two jobs per deployment** (BUILD, then DEPLOY) instead of one, so rollbacks skip the build and a deploy retry doesn't rebuild.
+- `runtime_instances` is owned by the **deployment** module. `runtime` is a stateless adapter over Docker.
+- **The agent is rules first, LLM optional** (`ANTHROPIC_API_KEY`), so the demo works offline and deterministically.
+- **Offline demo mode:** `FORGE_GIT_BASE_URL=file://…` + `scripts/demo-repos.sh` / `scripts/demo-push.sh` (signed webhooks), so the demo doesn't depend on venue Wi-Fi or GitHub.
+- Team of 2: Shivansh builds; the teammate presents. The code is written to be explained module by module ([09](09-viva-guide.md)).
+
+---
+
 ## D-002 — Kubernetes is dropped (2026-10-11)
 
 **Decision:** Forge will **not** use Kubernetes. The runtime stays **Docker + Traefik** for the whole project, on a laptop locally and on AWS EC2 for the final deployment.

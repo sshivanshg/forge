@@ -136,7 +136,9 @@ class DeploymentTest {
   @SuppressWarnings("unchecked")
   private static List<DeploymentStatusChanged> events(Deployment d) {
     try {
-      var method = org.springframework.data.domain.AbstractAggregateRoot.class.getDeclaredMethod("domainEvents");
+      var method =
+          org.springframework.data.domain.AbstractAggregateRoot.class.getDeclaredMethod(
+              "domainEvents");
       method.setAccessible(true);
       assertThat(method.isAnnotationPresent(DomainEvents.class)).isTrue();
       return (List<DeploymentStatusChanged>) (List<?>) method.invoke(d);

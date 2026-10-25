@@ -11,8 +11,7 @@ import org.junit.jupiter.api.Test;
 class EncryptionServiceTest {
 
   private final EncryptionService encryption =
-      new EncryptionService(
-          new CryptoProperties(Base64.getEncoder().encodeToString(new byte[32])));
+      new EncryptionService(new CryptoProperties(Base64.getEncoder().encodeToString(new byte[32])));
 
   @Test
   void roundTrips() {

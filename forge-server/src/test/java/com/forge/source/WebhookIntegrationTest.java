@@ -35,11 +35,15 @@ class WebhookIntegrationTest extends AbstractIntegrationTest {
   void signedPushQueuesADeploymentOnce() throws Exception {
     String body = push("refs/heads/main");
 
-    send(body, sign(body), "delivery-1").andExpect(status().isAccepted()).andExpect(jsonPath("$.result").value("accepted"));
+    send(body, sign(body), "delivery-1")
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.result").value("accepted"));
     // GitHub retries deliveries: the same delivery id must not deploy twice
     send(body, sign(body), "delivery-1").andExpect(jsonPath("$.result").value("duplicate"));
 
-    assertThat(jdbc.queryForObject("select count(*) from deployments where trigger = 'WEBHOOK'", Integer.class))
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from deployments where trigger = 'WEBHOOK'", Integer.class))
         .isEqualTo(1);
     assertThat(jdbc.queryForObject("select commit_message from deployments", String.class))
         .isEqualTo("fix: typo");
@@ -59,11 +63,12 @@ class WebhookIntegrationTest extends AbstractIntegrationTest {
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.code").value("INVALID_WEBHOOK_SIGNATURE"));
     send(body, null, "delivery-4").andExpect(status().isUnauthorized());
-    assertThat(jdbc.queryForObject("select count(*) from webhook_deliveries", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("select count(*) from webhook_deliveries", Integer.class))
+        .isZero();
   }
 
-  private org.springframework.test.web.servlet.ResultActions send(String body, String signature, String delivery)
-      throws Exception {
+  private org.springframework.test.web.servlet.ResultActions send(
+      String body, String signature, String delivery) throws Exception {
     var request =
         post("/api/v1/webhooks/github")
             .contentType(MediaType.APPLICATION_JSON)

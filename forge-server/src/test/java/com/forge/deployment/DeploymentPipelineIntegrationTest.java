@@ -43,9 +43,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
- * The whole deployment pipeline, end to end: HTTP API → job queue → build → rollout → state
- * machine → audit → agent. Only the edges that need the outside world (git, Docker, HTTP probes)
- * are replaced by mocks.
+ * The whole deployment pipeline, end to end: HTTP API → job queue → build → rollout → state machine
+ * → audit → agent. Only the edges that need the outside world (git, Docker, HTTP probes) are
+ * replaced by mocks.
  */
 class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
 
@@ -72,7 +72,10 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
             call -> {
               BuildRequest request = call.getArgument(0);
               return new BuildResult(
-                  "localhost:5001/forge/" + request.projectSlug() + ":" + request.commitSha().substring(0, 12),
+                  "localhost:5001/forge/"
+                      + request.projectSlug()
+                      + ":"
+                      + request.commitSha().substring(0, 12),
                   BuildType.NODE,
                   new CommitInfo(request.commitSha(), "feat: say hello"));
             });
@@ -122,7 +125,8 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
     drainJobs();
 
     healthy(false);
-    when(runtime.recentOutput(anyString(), anyInt())).thenReturn(List.of("Server listening on port 3000"));
+    when(runtime.recentOutput(anyString(), anyInt()))
+        .thenReturn(List.of("Server listening on port 3000"));
     String bad = deploy().get("id").asText();
     drainJobs();
 
@@ -138,7 +142,9 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
         .atMost(Duration.ofSeconds(10))
         .untilAsserted(
             () ->
-                mvc.perform(get("/api/v1/deployments/" + bad + "/insight").header("Authorization", bearer(token)))
+                mvc.perform(
+                        get("/api/v1/deployments/" + bad + "/insight")
+                            .header("Authorization", bearer(token)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.category").value("PORT_MISMATCH"))
                     .andExpect(jsonPath("$.engine").value("rules")));
@@ -150,8 +156,12 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
         .thenAnswer(
             call -> {
               BuildRequest request = call.getArgument(0);
-              logSink.append(request.deploymentId(), LogSource.BUILD, "[ERROR] App.java:[3,1] cannot find symbol");
-              throw new BuildFailedException(BuildFailedException.Reason.BUILD_FAILED, "docker build failed");
+              logSink.append(
+                  request.deploymentId(),
+                  LogSource.BUILD,
+                  "[ERROR] App.java:[3,1] cannot find symbol");
+              throw new BuildFailedException(
+                  BuildFailedException.Reason.BUILD_FAILED, "docker build failed");
             });
     String id = deploy().get("id").asText();
     drainJobs();
@@ -164,7 +174,9 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
         .atMost(Duration.ofSeconds(10))
         .untilAsserted(
             () ->
-                mvc.perform(get("/api/v1/deployments/" + id + "/insight").header("Authorization", bearer(token)))
+                mvc.perform(
+                        get("/api/v1/deployments/" + id + "/insight")
+                            .header("Authorization", bearer(token)))
                     .andExpect(jsonPath("$.category").value("COMPILATION_ERROR")));
   }
 
@@ -176,12 +188,13 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
     drainJobs();
 
     String rollback =
-        read(
-                mvc.perform(post("/api/v1/deployments/" + first + "/rollback").header("Authorization", bearer(token)))
-                    .andExpect(status().isAccepted())
-                    .andReturn()
-                    .getResponse()
-                    .getContentAsString())
+        read(mvc.perform(
+                    post("/api/v1/deployments/" + first + "/rollback")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isAccepted())
+                .andReturn()
+                .getResponse()
+                .getContentAsString())
             .get("id")
             .asText();
     drainJobs();
@@ -189,7 +202,8 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
     JsonNode result = getDeployment(rollback);
     assertThat(result.get("status").asText()).isEqualTo("LIVE");
     assertThat(result.get("trigger").asText()).isEqualTo("ROLLBACK");
-    assertThat(result.get("imageRef").asText()).isEqualTo(getDeployment(first).get("imageRef").asText());
+    assertThat(result.get("imageRef").asText())
+        .isEqualTo(getDeployment(first).get("imageRef").asText());
     assertThat(result.get("timeline").findValuesAsText("to")).doesNotContain("BUILDING");
     verify(builds, org.mockito.Mockito.times(2)).build(any());
   }
@@ -208,10 +222,12 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
   @Test
   void cancelOnlyWhileNotYetDeploying() throws Exception {
     String id = deploy().get("id").asText();
-    mvc.perform(post("/api/v1/deployments/" + id + "/cancel").header("Authorization", bearer(token)))
+    mvc.perform(
+            post("/api/v1/deployments/" + id + "/cancel").header("Authorization", bearer(token)))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.status").value("CANCELLED"));
-    mvc.perform(post("/api/v1/deployments/" + id + "/cancel").header("Authorization", bearer(token)))
+    mvc.perform(
+            post("/api/v1/deployments/" + id + "/cancel").header("Authorization", bearer(token)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("NOT_CANCELLABLE"));
     drainJobs();
@@ -239,7 +255,8 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
     String stranger = signUp("stranger");
     mvc.perform(get("/api/v1/deployments/" + id).header("Authorization", bearer(stranger)))
         .andExpect(status().isNotFound());
-    mvc.perform(post("/api/v1/deployments/" + id + "/cancel").header("Authorization", bearer(stranger)))
+    mvc.perform(
+            post("/api/v1/deployments/" + id + "/cancel").header("Authorization", bearer(stranger)))
         .andExpect(status().isNotFound());
   }
 
@@ -247,7 +264,12 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
 
   private void healthy(boolean ok) {
     when(health.awaitHealthy(any(), anyString(), any(), any()))
-        .thenReturn(new HealthResult(ok, 3, Duration.ofSeconds(4), ok ? "HTTP 200 from /health" : "process exited (Connection refused)"));
+        .thenReturn(
+            new HealthResult(
+                ok,
+                3,
+                Duration.ofSeconds(4),
+                ok ? "HTTP 200 from /health" : "process exited (Connection refused)"));
   }
 
   /** Runs queued jobs synchronously until the queue is empty (what workers do in production). */
@@ -277,7 +299,9 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
 
   private JsonNode deploy() throws Exception {
     return read(
-        mvc.perform(post("/api/v1/projects/" + projectId + "/deployments").header("Authorization", bearer(token)))
+        mvc.perform(
+                post("/api/v1/projects/" + projectId + "/deployments")
+                    .header("Authorization", bearer(token)))
             .andExpect(status().isAccepted())
             .andExpect(jsonPath("$.status").value("QUEUED"))
             .andReturn()
@@ -303,11 +327,11 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
   }
 
   private List<String> logLines(String id) throws Exception {
-    return read(
-            mvc.perform(get("/api/v1/deployments/" + id + "/logs").header("Authorization", bearer(token)))
-                .andReturn()
-                .getResponse()
-                .getContentAsString())
+    return read(mvc.perform(
+                get("/api/v1/deployments/" + id + "/logs").header("Authorization", bearer(token)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString())
         .findValuesAsText("line");
   }
 }
