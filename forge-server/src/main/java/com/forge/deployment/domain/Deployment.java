@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.domain.AbstractAggregateRoot;
 
 /**
@@ -42,6 +44,7 @@ public class Deployment extends AbstractAggregateRoot<Deployment> {
   @Column(name = "project_id", nullable = false)
   private UUID projectId;
 
+  @JdbcTypeCode(SqlTypes.CHAR) // CHAR(40): a SHA always has exactly 40 characters
   @Column(name = "commit_sha", nullable = false, length = 40)
   private String commitSha;
 

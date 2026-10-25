@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -152,8 +153,7 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void buildFailureIsRecordedAndDiagnosed() throws Exception {
-    when(builds.build(any()))
-        .thenAnswer(
+    doAnswer(
             call -> {
               BuildRequest request = call.getArgument(0);
               logSink.append(
@@ -162,7 +162,9 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
                   "[ERROR] App.java:[3,1] cannot find symbol");
               throw new BuildFailedException(
                   BuildFailedException.Reason.BUILD_FAILED, "docker build failed");
-            });
+            })
+        .when(builds)
+        .build(any());
     String id = deploy().get("id").asText();
     drainJobs();
 
