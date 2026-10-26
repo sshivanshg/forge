@@ -50,6 +50,19 @@ class DiagnosisRulesTest {
   }
 
   @Test
+  void dockerEngineFaultIsNotBlamedOnTheCode() {
+    Diagnosis d =
+        diagnose(
+            "BUILD_FAILED",
+            "docker build failed: Could not build image: failed to stat parent",
+            "ERROR: failed to stat parent: stat /var/lib/desktop-containerd/daemon/"
+                + "io.containerd.snapshotter.v1.overlayfs/snapshots/427/fs: no such file or directory");
+
+    assertThat(d.category()).isEqualTo("PLATFORM_ERROR");
+    assertThat(d.summary()).contains("not your code");
+  }
+
+  @Test
   void outOfMemoryFromExitCode137() {
     assertThat(diagnose("UNHEALTHY", "process exited; container exited with code 137").category())
         .isEqualTo("OUT_OF_MEMORY");

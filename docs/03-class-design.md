@@ -463,6 +463,7 @@ classDiagram
     DiagnosisEngine <|.. ClaudeDiagnosisEngine
     DiagnosisEngine <|.. RuleBasedDiagnosisEngine
     RuleBasedDiagnosisEngine "1" o-- "1..*" DiagnosisRule
+    DiagnosisRule <|.. PlatformError
     DiagnosisRule <|.. PortMismatch
     DiagnosisRule <|.. CompilationError
     DiagnosisRule <|.. CrashOnStartup
@@ -479,7 +480,7 @@ classDiagram
     DeploymentNotifier "1" o-- "1..*" NotificationChannel
 ```
 
-(Rule list abbreviated: there are 12 rules in `DiagnosisRules`.)
+(Rule list abbreviated: there are 13 rules in `DiagnosisRules`.)
 
 ## 5. Object-oriented design
 
@@ -528,7 +529,7 @@ classDiagram
 | **State** | `DeploymentStatus` (transition table) + `Deployment.transitionTo()` | The lifecycle has strict legal moves. Centralising them makes illegal states impossible and testable (`DeploymentStatusTest` checks all 81 pairs). |
 | **Strategy** | `BuildStrategy`, `RolloutStrategy` (`BlueGreenRollout`), `DiagnosisEngine`, `NotificationChannel`, `RuntimeProvider` | Interchangeable algorithms behind one interface, chosen by type or configuration. |
 | **Template Method** | `AbstractJobHandler.handle()` is `final`: decode → MDC → timer → `doHandle()`. `TemplateBuildStrategy.prepare()` is `final`: render → write. | A fixed skeleton with variable steps, so every job gets logging and metrics for free. |
-| **Chain of Responsibility** | `DetectorChain` (Dockerfile → Maven → Gradle → Node). Diagnosis: LLM engine → rule engine → 12 ordered rules, with a generic fallback last. | Try handlers in priority order until one answers. Adding a handler doesn't change the others. |
+| **Chain of Responsibility** | `DetectorChain` (Dockerfile → Maven → Gradle → Node). Diagnosis: LLM engine → rule engine → 13 ordered rules, with a generic fallback last. | Try handlers in priority order until one answers. Adding a handler doesn't change the others. |
 | **Observer** | `DeploymentStatusChanged` → `DeploymentEventListeners` (audit, live stream, metrics), `DeploymentNotifier`, `FailureInvestigator`. `LogBroadcaster` → `Subscriber`s (open browser streams). | The deployment module announces changes without knowing who listens. Notification and the agent are fully decoupled. |
 | **Command** | `Job` rows (BUILD / DEPLOY) with `BuildJobPayload` / `DeployJobPayload` | A request becomes data that can be queued, retried, postponed, dead-lettered and audited. |
 

@@ -20,6 +20,7 @@ public final class DiagnosisRules {
         new SourceUnavailable(),
         new UnsupportedProject(),
         new BuildTimeout(),
+        new PlatformError(),
         new OutOfMemory(),
         new MissingStartScript(),
         new DependencyResolution(),
@@ -79,6 +80,37 @@ public final class DiagnosisRules {
                   + " uses a smaller base image.",
               Confidence.HIGH,
               List.of(c.failureDetail())));
+    }
+  }
+
+  /**
+   * The failure came from the build machine (Docker daemon, storage, registry), not from the user's
+   * code. Checked before the code rules so a platform fault is never blamed on the user.
+   */
+  static final class PlatformError implements DiagnosisRule {
+    private static final List<String> SIGNS =
+        List.of(
+            "error response from daemon",
+            "cannot connect to the docker daemon",
+            "failed to stat parent",
+            "snapshotter",
+            "no space left on device");
+
+    @Override
+    public Optional<Diagnosis> evaluate(FailureContext c) {
+      if (SIGNS.stream().noneMatch(c.searchableText()::contains)) {
+        return Optional.empty();
+      }
+      List<String> evidence = c.linesContaining(SIGNS.toArray(String[]::new));
+      return Optional.of(
+          new Diagnosis(
+              "PLATFORM_ERROR",
+              "The build machine failed, not your code: the container engine reported an internal"
+                  + " error.",
+              "Redeploy the same commit. If it fails again, the operator should free disk space or"
+                  + " clear the Docker build cache (docker builder prune).",
+              Confidence.MEDIUM,
+              evidence.isEmpty() ? List.of(c.failureDetail()) : evidence));
     }
   }
 

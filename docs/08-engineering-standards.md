@@ -48,7 +48,7 @@ flowchart TB
 | Unit | `ProjectDomainTest` | Slug, repo and build-setting validation |
 | Unit | `EncryptionServiceTest` | AES-GCM round trip, random IV, tamper detection |
 | Unit | `BuildChainTest`, `RetryingImageBuilderTest` | Detector chain picks the right build type; the decorator retries only transient failures |
-| Unit | `DiagnosisRulesTest`, `SecretRedactorTest` | Each of the 12 agent rules fires on its evidence; secrets never reach the agent |
+| Unit | `DiagnosisRulesTest`, `SecretRedactorTest` | Each of the 13 agent rules fires on its evidence (a Docker engine fault is never blamed on the code); secrets never reach the agent |
 | Unit | `BackoffTest`, `TraefikLabelsTest` | Exponential backoff with cap; routing and retry labels |
 | Unit | `SourceDomainTest` | Relinking GitHub replaces the account instead of adding one |
 | Integration | `AuthFlowIntegrationTest` | Register, login, refresh rotation, **refresh-token reuse detection**, logout |
@@ -59,7 +59,7 @@ flowchart TB
 | Architecture | `ArchitectureTest` | Section 2 above |
 | End to end | `scripts/demo-push.sh` on real Docker | Deploy, zero-downtime swap (4 swaps, 1,340 requests, 0 errors), broken deploy keeps the old version, rollback |
 
-**Totals:** 103 tests (76 unit/architecture + 27 integration), all green.
+**Totals:** 104 tests (77 unit/architecture + 27 integration), all green.
 
 **Rules**
 - Test names describe behaviour: `eachJobIsClaimedByExactlyOneOfManyWorkers`, `unhealthyNewVersionFailsAndTheOldOneKeepsServing`, `wrongPasswordAndUnknownUserGetTheSameAnswer`.

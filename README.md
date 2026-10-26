@@ -17,7 +17,7 @@ git push ─► webhook ─► job queue ─► clone ─► detect ─► docke
 - One-click **rollback** without rebuilding
 - Live build and runtime logs in the browser (Server-Sent Events, resumable)
 - Encrypted environment variables (AES-256-GCM), masked in the API
-- **Forge Agent**: reads the evidence of a failed deploy and explains the cause and the fix (Claude, or 12 built-in rules offline)
+- **Forge Agent**: reads the evidence of a failed deploy and explains the cause and the fix (Claude, or 13 built-in rules offline)
 - Email notifications when a deploy goes live or fails
 
 ## Quick start

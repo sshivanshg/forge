@@ -36,7 +36,7 @@ Use the sequence diagrams in [04 §1](04-interactions.md#1-sequence-deploy-a-com
 | 7 | API and layer separation | [05](05-api-spec.md), [02 §3](02-architecture.md#3-modules-modular-monolith) | `DeploymentController` → `DeploymentService` |
 | 8 | DB schema mapped from classes | [06](06-database-schema.md) | `db/migration/V1`–`V7` |
 | 9 | Errors, validation, edge cases, concurrency | [07](07-error-handling.md), [03 §8](03-class-design.md#8-concurrency-design) | `GlobalExceptionHandler`, `PostgresJobQueue.claim` |
-| 10 | Working implementation | Live demo (section 6) | 103 tests green, `ArchitectureTest` |
+| 10 | Working implementation | Live demo (section 6) | 104 tests green, `ArchitectureTest` |
 
 ## 4. The modules in two sentences each
 
@@ -54,7 +54,7 @@ The presenter should be able to say this for each module, then open one class.
 | `jobs` | A durable job queue on Postgres: `SKIP LOCKED` claiming, leases, heartbeat, reaper, exponential backoff, dead-lettering. | `PostgresJobQueue`, `JobRunner` |
 | `deployment` | The heart: the state machine, the build and deploy job handlers, blue-green rollout, rollback and cancel. | `Deployment`, `BlueGreenRollout` |
 | `notification` | Listens for status changes and emails the owner when a deploy goes live or fails. | `DeploymentNotifier` |
-| `agent` | When a deploy fails, collects evidence (logs, exit code, config), redacts secrets, and diagnoses: Claude if a key is set, otherwise 12 rules. | `FailureInvestigator`, `DiagnosisRules` |
+| `agent` | When a deploy fails, collects evidence (logs, exit code, config), redacts secrets, and diagnoses: Claude if a key is set, otherwise 13 rules. | `FailureInvestigator`, `DiagnosisRules` |
 | `shared` | Error model (`ErrorCode`, ProblemDetail), encryption, correlation ids, the Docker client. | `GlobalExceptionHandler` |
 
 ## 5. Likely questions
@@ -87,7 +87,7 @@ Blue-green: the new container must pass its health check before it gets traffic.
 AES-256-GCM with a random 12-byte IV per value; GCM also detects tampering. The master key comes only from the environment. Values are masked in the API, decrypted only when the container starts, and redacted before logs reach the agent. Passwords are hashed with BCrypt (cost 12), not encrypted, because we never need them back.
 
 **What makes it agentic?**
-On failure the agent *observes* (the last build and runtime log lines, the failure reason and detail such as exit code or out-of-memory, build type, configured port, health path, commit), *reasons* (Claude, or 12 deterministic rules when there is no API key or the call fails), and *reports* a category, summary, suggested fix and confidence. It is a listener on `DeploymentStatusChanged`, so the pipeline doesn't know it exists.
+On failure the agent *observes* (the last build and runtime log lines, the failure reason and detail such as exit code or out-of-memory, build type, configured port, health path, commit), *reasons* (Claude, or 13 deterministic rules when there is no API key or the call fails), and *reports* a category, summary, suggested fix and confidence. It is a listener on `DeploymentStatusChanged`, so the pipeline doesn't know it exists.
 
 **Isn't running users' code dangerous?**
 Yes. Generated Dockerfiles run the app as a non-root user, and every container gets memory, CPU and process limits, `no-new-privileges`, on a network that can't reach our database, and builds have a 10-minute timeout. Real platforms use microVMs (Firecracker); that's listed as future work.
@@ -128,7 +128,7 @@ while true; do curl -s -o /dev/null -w "%{http_code}\n" http://hello-node.localh
 3. **A broken push** (2 min): run `scripts/demo-push.sh break-port`. The deploy fails `UNHEALTHY`, the site still serves v2, and the agent card says the app listens on the wrong port, with the fix.
 4. **A crash** (1 min): run `scripts/demo-push.sh crash`. It fails within seconds, and the agent reports a missing `DATABASE_URL`.
 5. **Rollback** (30 s): click Roll back on the v2 deployment. It goes live without rebuilding.
-6. **Proof** (1 min): show `ArchitectureTest` and the test run (103 green), and the `jobs` and `deployment_events` tables.
+6. **Proof** (1 min): show `ArchitectureTest` and the test run (104 green), and the `jobs` and `deployment_events` tables.
 7. **Close** (30 s): future work (Kafka, Kubernetes, AWS, autoscaling).
 
 Restore the app afterwards with `scripts/demo-push.sh fix`. Always have the **recorded backup video** of this script ready.
