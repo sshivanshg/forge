@@ -1,139 +1,127 @@
-# 07 — Engineering Standards
+# 08 — Engineering Standards
 
-These are the rules we follow on every PR. When the instructor asks *"what best practices did you follow?"*, this page is the answer, and the CI pipeline enforces most of it automatically.
+The rules every change follows. Most of them are enforced by the build (`./mvnw verify`) and by CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)), so they are checked automatically.
 
 ## 1. Java code style
 
-| Rule | Example / reason |
-|------|------------------|
-| Formatting is automatic (**Spotless + google-java-format**) | `./mvnw spotless:apply`. CI fails if the code is not formatted, so there are no style debates in review. |
-| **Constructor injection only.** No `@Autowired` on fields. | Dependencies are explicit, fields can be `final`, and classes are testable without Spring. |
-| Use `record` for DTOs, events, and value objects | Immutable, with `equals`/`hashCode` for free |
-| Entities are **never** returned from controllers | Map to response DTOs, so the API contract doesn't change when the DB does, and nothing leaks (for example `passwordHash`) |
-| No `null` returns from public methods | Return `Optional<T>` for "may be absent", and empty collections for "none" |
-| Validate at the boundary | Jakarta Bean Validation (`@Valid`, `@NotBlank`, `@Min`) on request DTOs. Invariants are re-checked in domain constructors. |
-| Fail fast with domain exceptions | `throw new NotFoundException("Project", id)`. Never `return null` or swallow exceptions. |
-| No business logic in controllers | Controller = parse → call one service method → map response |
-| `@Transactional` on **application-service** methods only | Not on controllers or repositories. Keep transactions short and **never** hold one open across network I/O (docker build, HTTP calls). |
-| Names reveal intent | `markHealthChecking()` not `setStatus(3)`. `ImageRef` not `String image`. |
-| Small methods, small classes | Aim for methods under about 20 lines. If a class needs "and" to describe it, split it. |
-| No magic numbers or strings | Use `@ConfigurationProperties` records (`ForgeBuildProperties.timeout()`), constants, or enums |
-| Logging: SLF4J with placeholders | `log.info("Deployment {} moved to {}", id, status)`. **Never log secrets, tokens, or env-var values.** |
-| Use Java 21 features where they clarify | Records, sealed interfaces, pattern-matching `switch`, text blocks (Dockerfile templates), virtual threads |
+| Rule | Where you can see it |
+|------|----------------------|
+| Formatting is automatic: **Spotless + google-java-format 1.28** | `./mvnw spotless:apply`. `verify` runs `spotless:check`, so CI fails on unformatted code. |
+| **Constructor injection only**, never `@Autowired` on fields | Every service, e.g. `DeploymentService`, `DefaultBuildService`. Fields are `final`, and classes are testable without Spring. |
+| `record` for DTOs, events, commands and value objects | `CreateProjectCommand`, `DeploymentStatusChanged`, `BuildResult`, `Diagnosis`, `TokenPair`, `ContainerSpec` |
+| Entities are **never** returned from controllers | Controllers map to response records (`DeploymentView`, `ProjectSnapshot`), so `passwordHash` or encrypted values can't leak. |
+| No `null` from public methods | `Optional<T>` for "may be absent" (`UserLookup`, `ProjectCatalog`), empty lists for "none" |
+| Validate at the boundary, re-check in the domain | `@Valid` + Jakarta constraints on requests; `Slug`, `RepoRef`, `BuildSettings` reject bad values in their constructors |
+| Fail with domain exceptions | `NotFoundException`, `ValidationException`, `IllegalStateTransitionException`, `BuildFailedException`. All extend `ForgeException` and carry an `ErrorCode`. |
+| No business logic in controllers | Controller = validate → one service call → map the response |
+| `@Transactional` only on application services, and **never across network I/O** | Docker builds, Git clones and health probes run outside transactions. `DeploymentTransitions` holds the short transactional steps. |
+| No magic numbers | Typed `@ConfigurationProperties` records: `BuildProperties`, `DeploymentProperties`, `JobsProperties`, `RuntimeProperties`, `AgentProperties` |
+| Logging: SLF4J with placeholders, **never secrets** | `CorrelationIdFilter` + `MdcScope` put `deploymentId`/`jobId` in every log line. `SecretRedactor` strips env-var values before logs reach the agent. |
+| Java 21 where it clarifies | Records, sealed types, pattern-matching `switch`, text blocks, **virtual threads** (`spring.threads.virtual.enabled`, `JobRunner`) |
 
-### Package rules (enforced by tests)
+## 2. Architecture rules (enforced by tests)
 
-```java
-class ModularityTest {
-    @Test
-    void modulesRespectBoundaries() {
-        ApplicationModules.of(ForgeApplication.class).verify();   // Spring Modulith
-    }
-}
+[`ArchitectureTest`](../forge-server/src/test/java/com/forge/architecture/ArchitectureTest.java) fails the build when these are broken:
 
-class LayerRulesTest {   // ArchUnit
-    @ArchTest
-    static final ArchRule domainIsPure = noClasses().that().resideInAPackage("..domain..")
-            .should().dependOnClassesThat().resideInAnyPackage(
-                    "..infrastructure..", "..api..", "org.springframework.web..",
-                    "com.github.dockerjava..", "org.eclipse.jgit..");
+| Test | Rule |
+|------|------|
+| `modulesOnlyTalkThroughEachOthersPublicApi` | **Spring Modulith**: a module may use only the root package (public API) of another module, never its `application`/`domain`/`infrastructure` internals. No cycles. |
+| `domainDoesNotDependOnWebOrAdapters` | **ArchUnit**: `..domain..` never imports `..api..`, `..infrastructure..`, Spring Web, docker-java or JGit. |
+| `controllersNeverUseRepositoriesDirectly` | `..api..` classes go through an application service. |
+| `onlyAdaptersTouchDockerAndGit` | docker-java and JGit are used only inside `infrastructure` adapters (and the shared Docker client config). |
+| `documentModules` | Writes the module diagrams (PlantUML) into `target/spring-modulith-docs`. |
 
-    @ArchTest
-    static final ArchRule controllersDontTouchRepositories = noClasses().that().resideInAPackage("..api..")
-            .should().dependOnClassesThat().haveSimpleNameEndingWith("Repository");
-}
-```
-
-## 2. Testing strategy (test pyramid)
+## 3. Testing strategy
 
 ```mermaid
 flowchart TB
-    e2e["E2E (few)<br/>deploy sample app for real — @Tag('docker')"]
-    it["Integration (some)<br/>@SpringBootTest + Testcontainers (Postgres, Kafka, Redis), WireMock for GitHub"]
-    unit["Unit (many)<br/>JUnit 5 + AssertJ + Mockito — domain + application services"]
-    e2e --> it --> unit
+    e2e["End to end (manual, scripted)<br/>real Docker + Traefik: scripts/demo-push.sh"]
+    it["Integration<br/>@SpringBootTest + Testcontainers Postgres 16"]
+    arch["Architecture<br/>Spring Modulith + ArchUnit"]
+    unit["Unit (most tests)<br/>JUnit 5 + AssertJ + Mockito"]
+    e2e --> it --> arch --> unit
 ```
 
-| Layer | What to test | Tools |
-|-------|--------------|-------|
-| Unit | State machine (every transition), value-object validation, encryption round-trip, detectors with fixture folders, Dockerfile generation, backoff calculation | JUnit 5, AssertJ, Mockito |
-| Slice | Controllers (validation, status codes, ProblemDetail shape) | `@WebMvcTest` + MockMvc |
-| Integration | Repositories and SQL (`SKIP LOCKED` claim, partial unique index), full auth flow, outbox relay | `@SpringBootTest`, **Testcontainers** (a real Postgres, never H2) |
-| Contract with externals | GitHub API client, including 4xx/5xx and timeouts | **WireMock** |
-| E2E | Build and deploy `hello-spring` through the real Docker engine | `@Tag("docker")`, run in CI on `main` |
-| Architecture | Module boundaries, layer rules | Spring Modulith, **ArchUnit** |
-| Load / chaos | Queue throughput, worker crash recovery | Gatling (Java DSL), scripts |
+| Layer | Tests | What they prove |
+|-------|-------|-----------------|
+| Unit | `DeploymentStatusTest`, `DeploymentTest` | Every allowed and forbidden state transition; terminal states; domain events |
+| Unit | `ProjectDomainTest` | Slug, repo and build-setting validation |
+| Unit | `EncryptionServiceTest` | AES-GCM round trip, random IV, tamper detection |
+| Unit | `BuildChainTest`, `RetryingImageBuilderTest` | Detector chain picks the right build type; the decorator retries only transient failures |
+| Unit | `DiagnosisRulesTest`, `SecretRedactorTest` | Each of the 12 agent rules fires on its evidence; secrets never reach the agent |
+| Unit | `BackoffTest`, `TraefikLabelsTest` | Exponential backoff with cap; routing and retry labels |
+| Unit | `SourceDomainTest` | Relinking GitHub replaces the account instead of adding one |
+| Integration | `AuthFlowIntegrationTest` | Register, login, refresh rotation, **refresh-token reuse detection**, logout |
+| Integration | `ProjectApiIntegrationTest` | CRUD, ownership (another user's project is 404), env-var masking, validation errors as ProblemDetail |
+| Integration | `JobQueueConcurrencyIntegrationTest` | Many threads claim concurrently with `SKIP LOCKED`: **each job goes to exactly one worker**; lease expiry, retry and DEAD |
+| Integration | `DeploymentPipelineIntegrationTest` | The whole pipeline through the real queue and DB (Docker/Git mocked at the port): LIVE, superseded, failed + insight, rollback, cancel, one-in-progress rule |
+| Integration | `WebhookIntegrationTest` | Bad HMAC rejected, duplicate delivery ignored, push to the tracked branch deploys |
+| Architecture | `ArchitectureTest` | Section 2 above |
+| End to end | `scripts/demo-push.sh` on real Docker | Deploy, zero-downtime swap (4 swaps, 1,340 requests, 0 errors), broken deploy keeps the old version, rollback |
+
+**Totals:** 103 tests (76 unit/architecture + 27 integration), all green.
 
 **Rules**
-- Test names describe behaviour: `rejectsTransitionFromLiveToBuilding()`, `claimReturnsEachJobToExactlyOneWorker()`.
-- Arrange / Act / Assert structure, one behaviour per test.
-- Write a failing test before fixing every bug (regression test).
-- Coverage gate (**JaCoCo**): ≥ 70 % lines overall, ≥ 85 % on `*.domain` packages. CI fails below that.
+- Test names describe behaviour: `eachJobIsClaimedByExactlyOneOfManyWorkers`, `unhealthyNewVersionFailsAndTheOldOneKeepsServing`, `wrongPasswordAndUnknownUserGetTheSameAnswer`.
+- Arrange / Act / Assert, one behaviour per test.
+- Integration tests use a **real Postgres** in a container, never H2, because `SKIP LOCKED`, partial unique indexes and `CHECK` constraints are Postgres features.
+- **Coverage gate (JaCoCo):** at least 80 % line coverage on every `com.forge.*.domain` package. `verify` fails below that.
 
-## 3. Git workflow
+## 4. Git workflow
 
-- `main` is always deployable and protected (PR + green CI required).
-- One branch per task: `feat/w3-job-queue`, `fix/sse-reconnect`, `docs/hld-diagrams`.
-- **Conventional Commits:** `feat(deployment): add state machine transitions`, `fix(build): clean workspace on failure`, `test(jobs): concurrency test for claim`, `docs: …`, `refactor: …`, `chore: …`.
-- Small PRs (under about 400 lines). The PR description covers *what*, *why*, *how tested*, and screenshots or a curl for API changes.
-- Self-review your diff before requesting review. Squash-merge.
-- Tags: `v1.0.0` (M1), `v2.0.0` (M2).
+- `main` is always green. Work happens on a branch (`feat/m1`) and is merged by PR.
+- **Conventional Commits:** `feat(server): …`, `fix(runtime): …`, `docs: …`, `test(jobs): …`, `refactor: …`, `chore: …`.
+- Each PR says *what*, *why* and *how it was tested*.
+- `v1.0.0` is tagged for the evaluation build.
 
-## 4. CI pipeline (GitHub Actions)
+## 5. CI pipeline (GitHub Actions)
 
 ```mermaid
 flowchart LR
-    pr[Pull request] --> fmt[spotless:check]
-    fmt --> build[compile]
-    build --> unit[unit tests]
-    unit --> it[integration tests<br/>Testcontainers]
-    it --> arch[ArchUnit + Modulith]
-    arch --> cov[JaCoCo gate]
-    cov --> dash[dashboard: lint + build]
-    dash --> ok{all green?}
+    pr[push / pull request] --> s1
+    subgraph server [forge-server job]
+      s1[spotless:check] --> s2[compile] --> s3[unit tests] --> s4[integration tests<br/>Testcontainers] --> s5[ArchUnit + Modulith] --> s6[JaCoCo gate]
+    end
+    pr --> d1
+    subgraph dashboard [forge-dashboard job]
+      d1[npm ci] --> d2[eslint] --> d3[next build]
+    end
+    s6 --> ok{both green?}
+    d3 --> ok
     ok -- yes --> merge[merge allowed]
-    tag[git tag v*] --> img[build images] --> push[push to ECR] --> deploy[deploy to k3s]
 ```
 
-Also: Dependabot for dependency updates, and the GitHub secret-scanning alert left on.
+Test reports and the coverage report are uploaded as build artifacts.
 
-## 5. Configuration and secrets
+## 6. Configuration and secrets
 
 | Kind | Where |
 |------|-------|
-| Non-secret defaults | `application.yml` |
-| Per-environment overrides | `application-dev.yml`, `application-prod.yml` |
-| Secrets (DB password, JWT signing key, encryption master key, GitHub client secret) | **Environment variables only.** `.env` locally (git-ignored, `.env.example` committed), K8s `Secret` in the cluster. |
-| Typed access | `@ConfigurationProperties(prefix = "forge.build") record ForgeBuildProperties(Duration timeout, int maxConcurrent) {}` with `@Validated` |
+| Non-secret defaults | `application.yml` (`forge.*` sections) |
+| Test overrides | `src/test/resources/application-test.yml` (random throwaway keys, job runner off) |
+| Secrets: JWT key, AES master key, GitHub client secret, webhook secret, `ANTHROPIC_API_KEY` | **Environment only.** `.env` locally (git-ignored); `.env.example` documents every variable. |
+| Typed access | `@ConfigurationProperties` records with `@Validated`, e.g. `CryptoProperties` rejects a key that isn't 32 bytes at startup. |
 
-## 6. API design rules
+## 7. API design rules
 
-- Resource-oriented nouns: `/projects/{id}/deployments`, not `/createDeployment`.
-- Correct status codes (see [05](05-api-spec.md#http-status-codes-used)). `202` for async work.
-- Every error is a `ProblemDetail` with a stable machine-readable `code`.
-- Collections are always paginated.
-- Backward-compatible changes only within `/v1`.
+- Resource nouns under `/api/v1`: `/projects/{id}/deployments`, `/deployments/{id}/rollback`.
+- Correct status codes: `201` create, `202 Accepted` for async deploys, `204` delete, `409` for conflicts, `422` for validation ([05](05-api-spec.md#5-http-status-codes-used)).
+- Every error is an RFC 9457 `ProblemDetail` with a stable `code` and the request's `correlationId`.
+- Lists are paginated (`PageResponse`).
+- Swagger UI at `/swagger-ui.html`.
 
-## 7. Database rules
+## 8. Database rules
 
-- Flyway only. Never edit an applied migration. Never use `ddl-auto=update` (set to `validate`).
-- Every foreign key column is indexed. Every query used by the UI has an index (check with `EXPLAIN ANALYZE`).
-- Invariants that matter are enforced **in the DB too** (`UNIQUE`, `CHECK`, partial unique index), not only in Java.
-- Avoid N+1 queries: use `@EntityGraph` or fetch joins, and turn on Hibernate statistics in dev to catch them.
+- Flyway only (`V1`–`V7`). Never edit an applied migration. Hibernate runs with `ddl-auto: validate`, so a mapping that doesn't match the schema fails at startup.
+- Every foreign key is indexed, and every list query has an index ([06 §4](06-database-schema.md#4-indexes-and-the-queries-they-serve)).
+- Business invariants are enforced **in the database too**: `UNIQUE`, `CHECK`, and the partial unique index allowing one in-progress deployment per project.
+- Optimistic locking (`@Version`) on aggregates that are updated concurrently.
 
-## 8. Documentation rules
+## 9. Definition of Done
 
-- Every module has a `package-info.java` with a one-paragraph description of its responsibility.
-- Every architectural decision gets an ADR row in [02 §10](02-architecture-hld.md#10-technology-decisions-adr-summary).
-- Javadoc on **public interfaces** (ports): contract, preconditions, and exceptions. Not on obvious getters.
-- Update diagrams in the same PR as the code that changes them.
-
-## 9. Definition of Done (applies to every task)
-
-- [ ] Code formatted, compiles, no new warnings
-- [ ] Unit + integration tests written and passing, coverage gate green
-- [ ] Error paths handled and tested (not just the happy path)
-- [ ] No secrets in code, logs, or commits
-- [ ] API docs (Swagger) and these docs updated if behaviour changed
-- [ ] PR reviewed (self-review at minimum) and merged with a conventional commit message
+- [ ] Formatted, compiles, no new warnings
+- [ ] Unit and integration tests written and passing; coverage gate green
+- [ ] Error paths handled and tested, not only the happy path
+- [ ] No secrets in code, logs or commits
+- [ ] Docs and diagrams updated in the same change
 - [ ] You can explain the change in two minutes without notes

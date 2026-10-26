@@ -1,97 +1,134 @@
-# 08 — Viva / Demo Guide
+# 09 — Viva and Demo Guide
 
-How to explain Forge end to end, in the order an instructor will probe it.
+How to present Forge: the pitch, the end-to-end story, where each rubric item lives, every module in two sentences, likely questions, and the exact demo script.
 
 ## 1. The 60-second pitch
 
-> "Forge is a mini Render or Railway. You connect a GitHub repo and click Deploy, or just `git push`. Forge clones that exact commit, detects whether it's a Spring Boot, Node, or Dockerfile project, builds a Docker image, pushes it to a registry, starts it as a container, health-checks it, and only then switches traffic to it. So a bad deploy never takes the site down. It's built in Java 21 and Spring Boot as a **modular monolith**. The slow work runs asynchronously on a job queue, first Postgres and then Kafka with a transactional outbox, so the API stays fast and a crashed worker never loses a deployment. In M2 it runs on Kubernetes on AWS, with rolling updates, autoscaling, Prometheus and Grafana monitoring, and an AI assistant that explains failed deploys."
+> "Forge is a small Render or Railway. You point it at a Git repository and click Deploy, or just `git push`. Forge clones that exact commit, detects whether it is a Spring Boot, Node or Dockerfile project, builds a Docker image, starts it as a container, health-checks it, and only then moves traffic to it. A bad deploy never takes the site down: the old version keeps serving, and an **agent** reads the logs and tells you *why* it failed and how to fix it. It's Java 21 and Spring Boot, built as a **modular monolith** of 11 modules whose boundaries are enforced by tests. Slow work runs on a **Postgres job queue**, so the API answers in milliseconds and a crashed worker never loses a deployment."
 
-## 2. The end-to-end walkthrough (12 steps)
+## 2. End to end in 12 steps
 
-Draw [the sequence diagram](02-architecture-hld.md#5-the-core-flow-end-to-end-click-deploy) on the board and narrate:
+Use the sequence diagrams in [04 §1](04-interactions.md#1-sequence-deploy-a-commit-uc5):
 
-1. **Trigger.** The developer clicks Deploy, *or* GitHub sends a signed `push` webhook. We verify the HMAC signature and dedupe by delivery ID.
-2. **Authenticate and authorise.** The JWT filter identifies the user. The service loads the project with `findByIdAndOwnerId`, so another user's project is a 404.
-3. **Pin the commit.** We resolve the branch HEAD to an exact SHA. Deploys are reproducible.
-4. **Record intent atomically.** In one DB transaction: insert the `Deployment(QUEUED)` and the build job (an outbox event in M2). Older queued deploys of this project are superseded.
-5. **Return immediately.** `202 Accepted` + deployment ID. The UI opens an SSE log stream.
-6. **Claim.** A worker claims the job with `FOR UPDATE SKIP LOCKED` (M1), or receives it from Kafka partitioned by projectId (M2). The lease and heartbeat protect against crashes.
-7. **Checkout.** JGit shallow-clones that SHA into a temp workspace (always cleaned up).
-8. **Detect and build.** The chain of detectors picks the build type, and the Strategy generates a Dockerfile if needed. docker-java builds the image, and every log line goes through `LogSink` to the DB and the SSE stream.
-9. **Publish.** The image is tagged `forge/<slug>:<sha>` and pushed to the registry. Status becomes `DEPLOYING`.
-10. **Run green.** `RuntimeProvider` starts the new container (or K8s pods) with decrypted env vars, resource limits, and routing labels.
-11. **Verify.** `HealthProbe` polls the health path for up to 60 s. Status is `HEALTH_CHECKING`.
-12. **Switch or roll back.** If healthy: traffic moves to green, blue is stopped, status becomes `LIVE`, and the old deployment becomes `SUPERSEDED`. If not: green is removed, the status becomes `FAILED(UNHEALTHY)`, blue was never touched, and the AI investigator explains why. Every transition was validated by the state machine and written to `deployment_events`. Listeners send notifications after commit.
+1. **Trigger.** The user clicks Deploy (`POST /api/v1/projects/{id}/deployments`), *or* GitHub sends a `push` webhook. `WebhookService` checks the HMAC-SHA256 signature in constant time and ignores a delivery ID it has already seen.
+2. **Authenticate.** `JwtAuthenticationFilter` validates the access token. Projects are loaded by id *and* owner, so another user's project is a 404, not a 403.
+3. **Pin the commit.** `SourceCodeProvider` resolves the branch to an exact 40-character SHA, so the deploy is reproducible.
+4. **Record intent in one transaction.** `DeploymentService` saves `Deployment(QUEUED)` and enqueues a BUILD job in the *same* transaction. Older deployments still waiting are superseded.
+5. **Return immediately:** `202 Accepted` with the deployment. The dashboard opens an SSE stream for live logs.
+6. **Claim.** A `JobRunner` virtual thread claims the job with `FOR UPDATE SKIP LOCKED`, takes a lease and heartbeats it.
+7. **Clone.** `JGitSourceCodeProvider` shallow-clones that SHA into a temporary folder that is always deleted.
+8. **Detect and build.** `DetectorChain` picks the build type (Dockerfile → Maven → Gradle → Node). `BuildStrategyFactory` gives the strategy that writes a Dockerfile if needed. `DockerImageBuilder` builds and pushes the image to the local registry; every log line goes through `LogSink` to the DB and the live stream.
+9. **Queue the deploy.** Status becomes `DEPLOYING` and a DEPLOY job is enqueued.
+10. **Start green.** `BlueGreenRollout` asks `RuntimeProvider` for a new container with decrypted env vars, memory/CPU/process limits and Traefik routing labels.
+11. **Verify.** `HttpHealthProbe` polls the health path every 2 s for up to 90 s, and fails fast if the container exits. Status is `HEALTH_CHECKING`.
+12. **Switch or keep the old one.** Healthy → status `LIVE`, the old container is drained and stopped, the old deployment becomes `SUPERSEDED`. Unhealthy → the new container is removed, status `FAILED(UNHEALTHY)`, the old one never stopped serving, and after commit the agent writes an insight. Every transition is checked by the state machine and stored in `deployment_events`.
 
-## 3. Map the course syllabus to code
+## 3. Where each rubric item is
 
-| Syllabus topic | Where to point |
-|----------------|----------------|
-| OOP pillars | [03 §8](03-lld-class-design.md#8-oop-pillars-where-they-show-up): `Deployment` encapsulation, `RuntimeProvider` abstraction, `AbstractJobHandler` inheritance, `List<BuildStrategy>` polymorphism |
-| SOLID | [03 §7](03-lld-class-design.md#7-solid-concrete-examples-you-can-point-at) |
-| Design patterns | [03 §6](03-lld-class-design.md#6-design-patterns-where-each-one-is-and-why): more than 15 patterns, each with a concrete class |
-| LLD | Class diagrams, state machine, exception hierarchy, concurrency model ([03](03-lld-class-design.md)) |
-| HLD | Context, container, and module diagrams, ADRs ([02](02-architecture-hld.md)) |
-| Databases | ERD, indexes, partial unique index, optimistic locking, `SKIP LOCKED` ([04](04-database-schema.md)) |
-| Distributed systems | Outbox, at-least-once + idempotency, partition ordering, leases, circuit breakers, failure modes |
-| Concurrency | Virtual threads, semaphore back-pressure, optimistic locking, advisory locks |
-| Cloud / DevOps | Docker, Kubernetes, AWS, CI/CD, Prometheus, Grafana |
-| Security | BCrypt, JWT + rotation, AES-GCM, HMAC webhooks, ownership checks, resource limits |
-| Testing | Test pyramid, Testcontainers, ArchUnit, Gatling, chaos tests ([07](07-engineering-standards.md)) |
+| # | Rubric item | Document | Show in code |
+|---|-------------|----------|--------------|
+| 1 | Requirements, actors, use cases | [01](01-requirements.md) | — |
+| 2 | Class diagram, relationships, multiplicity | [03 §1–4](03-class-design.md) | `Deployment`, `Project`, `EnvironmentVariable` |
+| 3 | OOP | [03 §5](03-class-design.md#5-object-oriented-design) | `Deployment` (no setters), `AbstractJobHandler` |
+| 4 | SOLID | [03 §6](03-class-design.md#6-solid--where-each-principle-is-applied) | `RetryingImageBuilder` (O), `LogSink`/`LogReader` (I), `RuntimeProvider` (D) |
+| 5 | Design patterns | [03 §7](03-class-design.md#7-design-patterns-with-justification) | `DetectorChain`, `ContainerSpec.builder()`, `DeploymentStatus` |
+| 6 | Sequence and activity diagrams | [04](04-interactions.md) | — |
+| 7 | API and layer separation | [05](05-api-spec.md), [02 §3](02-architecture.md#3-modules-modular-monolith) | `DeploymentController` → `DeploymentService` |
+| 8 | DB schema mapped from classes | [06](06-database-schema.md) | `db/migration/V1`–`V7` |
+| 9 | Errors, validation, edge cases, concurrency | [07](07-error-handling.md), [03 §8](03-class-design.md#8-concurrency-design) | `GlobalExceptionHandler`, `PostgresJobQueue.claim` |
+| 10 | Working implementation | Live demo (section 6) | 103 tests green, `ArchitectureTest` |
 
-## 4. Likely questions, with model answers
+## 4. The modules in two sentences each
 
-**Q: Why not microservices from the start?**
-A: Microservices cost a lot to operate: network calls, distributed transactions, and many deployables. With one developer and an unclear domain, a modular monolith gives the same boundaries (enforced by Spring Modulith tests) at a fraction of the cost. We extracted only the workers, because builds are CPU-heavy, bursty, and risky. They need independent scaling and failure isolation from the API. The API and dashboard don't.
+The presenter should be able to say this for each module, then open one class.
 
-**Q: Why not just call the build directly in the HTTP request?**
-A: Builds take minutes. Holding a request thread and an HTTP connection that long breaks under load and is lost on restart. Queueing turns it into durable, retryable, horizontally scalable background work, and the API responds in milliseconds.
+| Module | What it does | Open this class |
+|--------|--------------|-----------------|
+| `identity` | Registration, login, JWT access tokens (15 min) and rotating refresh tokens. Reusing an old refresh token is treated as theft and signs the user out everywhere. | `AuthService` |
+| `project` | Projects, their build settings, and environment variables encrypted with AES-256-GCM and masked in every response. | `EnvironmentService` |
+| `source` | Talks to Git: GitHub OAuth, listing repos, cloning a commit with JGit, and verifying push webhooks. | `WebhookService` |
+| `build` | Turns source into an image: a chain of detectors picks the stack, a strategy writes the Dockerfile, docker-java builds and pushes. | `DefaultBuildService` |
+| `runtime` | Starts and stops app containers with resource limits, an isolated network and Traefik routing labels. | `DockerRuntimeProvider` |
+| `health` | Polls the app's health URL until it answers 2xx/3xx, times out, or the container dies. | `HttpHealthProbe` |
+| `logs` | Stores build and runtime log lines with sequence numbers and streams them live over SSE, resuming from `Last-Event-ID`. | `LogBroadcaster` |
+| `jobs` | A durable job queue on Postgres: `SKIP LOCKED` claiming, leases, heartbeat, reaper, exponential backoff, dead-lettering. | `PostgresJobQueue`, `JobRunner` |
+| `deployment` | The heart: the state machine, the build and deploy job handlers, blue-green rollout, rollback and cancel. | `Deployment`, `BlueGreenRollout` |
+| `notification` | Listens for status changes and emails the owner when a deploy goes live or fails. | `DeploymentNotifier` |
+| `agent` | When a deploy fails, collects evidence (logs, exit code, config), redacts secrets, and diagnoses: Claude if a key is set, otherwise 12 rules. | `FailureInvestigator`, `DiagnosisRules` |
+| `shared` | Error model (`ErrorCode`, ProblemDetail), encryption, correlation ids, the Docker client. | `GlobalExceptionHandler` |
 
-**Q: Why Postgres as a queue first, and why move to Kafka?**
-A: Postgres let us enqueue in the *same transaction* as the deployment insert, with zero extra infrastructure, and `SKIP LOCKED` makes concurrent claiming safe. Its limits are polling load, all load on one DB, and no fan-out to multiple independent consumers. Kafka gives consumer groups for horizontal scaling, per-key ordering, replay, and fan-out (notifications, logs, and AI all consume the same status events). The `JobQueue` interface meant the switch was a new implementation, not a rewrite.
+## 5. Likely questions
 
-**Q: What is the dual-write problem, and how do you solve it?**
-A: Writing to the DB and then to Kafka is two separate systems. A crash in between leaves them inconsistent. We write the event into an `outbox_events` table in the same DB transaction, and a relay publishes it to Kafka afterwards. The worst case is a duplicate publish, which idempotent consumers handle.
+**Why a modular monolith and not microservices?**
+One deployable is far cheaper to build, test and run, and the module boundaries are still real: `ArchitectureTest` fails the build if one module reaches into another's internals. A module that needs to scale on its own (the build workers) can be extracted later, because it already talks only through interfaces.
 
-**Q: Exactly-once?**
-A: True exactly-once delivery across systems isn't practical. We use at-least-once delivery plus idempotent processing: `processed_events` dedup, deterministic image tags (`sha`-based), unique job idempotency keys, and the state machine rejecting repeated transitions. The result is effectively-once.
+**Why not build inside the HTTP request?**
+Builds take minutes. A request thread held that long breaks under load and is lost on restart. As a queued job it is durable, retryable and can run on any worker, and the API replies in milliseconds.
 
-**Q: A worker dies mid-build. What happens?**
-A: M1: its lease (`locked_until`) expires, the reaper puts the job back to `PENDING`, and another worker reclaims it. M2: the Kafka consumer session times out, the partition is rebalanced to another worker, and the uncommitted offset is redelivered. The deployment is still `BUILDING`. The retry rebuilds the same SHA, producing the same tag, so it is safe.
+**Why a Postgres queue instead of Kafka or RabbitMQ?**
+The job is inserted in the *same transaction* as the deployment, so they can never disagree (no dual-write problem), with no extra infrastructure. `SKIP LOCKED` makes concurrent claiming safe. Kafka is listed as future work: it adds fan-out and replay we don't need yet. `JobQueue` is an interface, so it would be a new adapter, not a rewrite.
 
-**Q: How do you guarantee only one deploy per project at a time?**
-A: In layers. The DB has a partial unique index on active statuses. M1 uses an advisory lock during the deploy phase. M2 uses Kafka key = projectId, so one partition processes them in order. Newer requests supersede older queued ones.
+**A worker crashes in the middle of a build. What happens?**
+Its lease (`locked_until`) runs out because heartbeats stop. The reaper puts the job back to `PENDING`, another worker claims it, and the retry rebuilds the same SHA, giving the same image tag. `abandonedJobIsReclaimedAfterItsLeaseExpires` tests this.
 
-**Q: How is it zero-downtime?**
-A: Blue-green on Docker: the new container must pass health checks before it receives traffic, and only then is the old one stopped. Rolling update on Kubernetes with `maxUnavailable=0` and readiness probes. In both cases, a failed new version is discarded while the old one keeps serving.
+**Exactly once?**
+Not across systems. We do at-least-once delivery plus idempotency: webhook delivery ids are stored, jobs have unique idempotency keys, image tags come from the SHA, and the state machine rejects repeated transitions.
 
-**Q: Optimistic vs pessimistic locking. Which did you use, and where?**
-A: Optimistic (`@Version`) on `Deployment`, because conflicts are rare and we'd rather detect them than block. Pessimistic row locks (`FOR UPDATE SKIP LOCKED`) for claiming jobs, where contention is the normal case.
+**How do you stop two deploys of the same project at once?**
+In two layers. The deploy handler checks first and postpones the job (`JobPostponedException`) if another deploy is in progress. As the last line of defence, a partial unique index in Postgres allows only one in-progress deployment per project (`databaseAllowsOnlyOneInProgressDeploymentPerProject`).
 
-**Q: How do you store secrets?**
-A: AES-256-GCM with a random IV per value. GCM also detects tampering. The master key lives only in an env var or K8s Secret. Values are masked in the API and decrypted only at container start. Passwords are not encrypted but hashed with BCrypt, because we never need them back.
+**Optimistic or pessimistic locking?**
+Both, where each fits. Optimistic (`@Version`) on `Deployment`, because conflicts are rare and we'd rather detect them and retry. Pessimistic row locks with `SKIP LOCKED` for claiming jobs, where contention is normal.
 
-**Q: Isn't running users' code dangerous?**
-A: Yes. We apply resource limits, a non-root user, a build timeout, a separate network from our databases, and no Docker socket in user containers. Real platforms use microVMs (Firecracker) for strong isolation. We list that as a known limitation and future work.
+**How is it zero downtime?**
+Blue-green: the new container must pass its health check before it gets traffic. During the swap Traefik load-balances across both, its retry middleware moves a failed connection to the other one, and `tini` as PID 1 passes SIGTERM to the app so it finishes in-flight requests. Measured: 4 swaps under a request loop, 1,340 requests, 0 errors.
 
-**Q: How would this scale to 10,000 users?**
-A: The API is stateless, so add replicas behind the load balancer (Redis carries the SSE fan-out). Add workers and Kafka partitions. Move logs to object storage or Loki. Use Postgres read replicas for history pages. Shard build nodes by region. Use a dedicated build cluster with BuildKit.
+**How are secrets stored?**
+AES-256-GCM with a random 12-byte IV per value; GCM also detects tampering. The master key comes only from the environment. Values are masked in the API, decrypted only when the container starts, and redacted before logs reach the agent. Passwords are hashed with BCrypt (cost 12), not encrypted, because we never need them back.
 
-**Q: What did you observe in your load test?**
-A: *(Fill in after week 12:)* queue drain time for 50 deploys with 1 worker vs 3 workers, and build-duration p50/p95 from Grafana.
+**What makes it agentic?**
+On failure the agent *observes* (the last build and runtime log lines, the failure reason and detail such as exit code or out-of-memory, build type, configured port, health path, commit), *reasons* (Claude, or 12 deterministic rules when there is no API key or the call fails), and *reports* a category, summary, suggested fix and confidence. It is a listener on `DeploymentStatusChanged`, so the pipeline doesn't know it exists.
 
-**Q: Which design pattern are you proudest of?**
-A: Strategy + DIP on `RuntimeProvider`. M1 ran on Docker, M2 on Kubernetes, and the deploy job handler didn't change. That is Open/Closed and Liskov Substitution demonstrated, not just claimed.
+**Isn't running users' code dangerous?**
+Yes. Generated Dockerfiles run the app as a non-root user, and every container gets memory, CPU and process limits, `no-new-privileges`, on a network that can't reach our database, and builds have a 10-minute timeout. Real platforms use microVMs (Firecracker); that's listed as future work.
 
-## 5. Final demo script (about 8 minutes)
+**How would it scale?**
+The API is stateless, so add instances behind a load balancer; `SKIP LOCKED` already lets many workers share one queue. Next: move SSE fan-out to Redis, extract the workers, move logs to object storage, and swap `DockerRuntimeProvider` for a Kubernetes one. All are listed in [10](10-roadmap.md#future-work-presented-not-built).
 
-1. **Architecture slide** (30 s): the container diagram.
-2. **Happy path** (2 min): edit text in `hello-spring` → `git push` → the dashboard shows the webhook-triggered deploy → build logs stream → status timeline → open the URL → new text.
-3. **Zero downtime** (1 min): a terminal runs a curl loop during a redeploy. No errors.
-4. **Failure safety** (1.5 min): push a commit that crashes on boot → `FAILED(UNHEALTHY)` → the site still serves the old version → open the AI insight.
-5. **Rollback** (30 s): one click back to the previous deployment. It doesn't rebuild.
-6. **Resilience** (1.5 min): kill a worker container mid-build → Kafka rebalances → the deploy still completes.
-7. **Observability** (1 min): Grafana platform dashboard (build durations, failure rate, queue depth). K8s HPA scaling the app under a Gatling load.
-8. **Close** (30 s): the trade-offs and future work slide.
+## 6. Demo script (about 8 minutes)
 
-Always have a **recorded backup video** of the same script.
+**Before the session** (in this order):
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+```
+
+```bash
+scripts/demo-repos.sh
+```
+
+```bash
+./mvnw -pl forge-server spring-boot:run
+```
+
+```bash
+cd forge-dashboard && npm run dev
+```
+
+Open http://localhost:3000, sign in with the demo account, and create the project **hello-node** (repository owner `demo`, name `hello-node`, health path `/health`). Deploy it once so v1 is live at http://hello-node.localhost. In a second terminal, start the request loop:
+
+```bash
+while true; do curl -s -o /dev/null -w "%{http_code}\n" http://hello-node.localhost; sleep 0.2; done
+```
+
+**On stage:**
+
+1. **Architecture** (1 min): the module diagram ([02 §3](02-architecture.md#3-modules-modular-monolith)) and the state machine ([03 §1](03-class-design.md#1-domain-model-entities-and-value-objects)).
+2. **Push a new version** (2 min): run `scripts/demo-push.sh v2`. The dashboard shows a deploy triggered by the webhook, the pipeline stepper moves, and build logs stream live. The request loop never prints anything but `200`. Refresh the app: it says v2.
+3. **A broken push** (2 min): run `scripts/demo-push.sh break-port`. The deploy fails `UNHEALTHY`, the site still serves v2, and the agent card says the app listens on the wrong port, with the fix.
+4. **A crash** (1 min): run `scripts/demo-push.sh crash`. It fails within seconds, and the agent reports a missing `DATABASE_URL`.
+5. **Rollback** (30 s): click Roll back on the v2 deployment. It goes live without rebuilding.
+6. **Proof** (1 min): show `ArchitectureTest` and the test run (103 green), and the `jobs` and `deployment_events` tables.
+7. **Close** (30 s): future work (Kafka, Kubernetes, AWS, autoscaling).
+
+Restore the app afterwards with `scripts/demo-push.sh fix`. Always have the **recorded backup video** of this script ready.
