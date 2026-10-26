@@ -32,6 +32,8 @@ interface PipelineStepperProps {
   /** When each status was entered (ISO). Used for per-step durations. */
   enteredAt: Partial<Record<DeploymentStatus, string>>;
   finishedAt: string | null;
+  /** Steps this deployment didn't need, e.g. the build of a rollback (it reuses an image). */
+  skipped?: readonly PipelineStep[];
 }
 
 function computeStates(status: DeploymentStatus, stoppedAt: PipelineStep | null): StepState[] {
@@ -80,7 +82,7 @@ function stepDuration(
   return ms >= 0 ? formatDuration(ms) : "";
 }
 
-export function PipelineStepper({ status, stoppedAt, enteredAt, finishedAt }: PipelineStepperProps) {
+export function PipelineStepper({ status, stoppedAt, enteredAt, finishedAt, skipped = [] }: PipelineStepperProps) {
   const states = computeStates(status, stoppedAt);
 
   return (
@@ -147,7 +149,13 @@ export function PipelineStepper({ status, stoppedAt, enteredAt, finishedAt }: Pi
                 </span>
               </span>
               <span className="mt-0.5 h-4 font-mono text-[11px] text-zinc-500 tabular-nums">
-                {state === "failed" ? "failed" : state === "cancelled" ? "cancelled" : duration}
+                {state === "failed"
+                  ? "failed"
+                  : state === "cancelled"
+                    ? "cancelled"
+                    : state === "done" && skipped.includes(step)
+                      ? "skipped"
+                      : duration}
               </span>
             </li>
           );

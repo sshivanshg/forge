@@ -1,4 +1,5 @@
 import type { Deployment, DeploymentStatus, FailureReason, PipelineStep } from "./types";
+import { shortSha } from "./format";
 import { PIPELINE_STEPS } from "./types";
 
 export type Tone = "blue" | "violet" | "amber" | "green" | "red" | "grey" | "slate";
@@ -42,6 +43,21 @@ export function canCancel(status: DeploymentStatus): boolean {
 
 export function canRollback(d: Pick<Deployment, "imageRef" | "status">): boolean {
   return !!d.imageRef && (d.status === "LIVE" || d.status === "SUPERSEDED" || d.status === "STOPPED");
+}
+
+/** Row title: the commit message, or (before the build has read it) what triggered the deploy. */
+export function deploymentTitle(d: Pick<Deployment, "commitMessage" | "trigger" | "commitSha">): string {
+  const message = d.commitMessage?.split("\n")[0];
+  if (message) return message;
+  const sha = shortSha(d.commitSha);
+  switch (d.trigger) {
+    case "ROLLBACK":
+      return `Rollback to ${sha}`;
+    case "WEBHOOK":
+      return `Push ${sha}`;
+    default:
+      return `Manual deploy of ${sha}`;
+  }
 }
 
 export function isPipelineStep(s: string | null | undefined): s is PipelineStep {

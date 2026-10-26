@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { api } from "@/lib/api";
 import { absoluteTime, durationBetween, relativeTime, shortSha } from "@/lib/format";
 import { useQuery, useTick } from "@/lib/hooks";
-import { canRollback, FAILURE_LABEL, isInProgress } from "@/lib/status";
+import { canRollback, deploymentTitle, FAILURE_LABEL, isInProgress } from "@/lib/status";
 import type { Deployment, Project } from "@/lib/types";
 
 const PAGE_SIZE = 15;
@@ -88,7 +88,7 @@ export function DeploymentsTab({ project, onDeploy, deploying }: Props) {
                   href={`/deployments/${d.id}`}
                   className="block truncate text-[13px] font-medium text-zinc-100 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-violet-500/70 focus-visible:after:ring-inset"
                 >
-                  {d.commitMessage?.split("\n")[0] || "Deployment"}
+                  {deploymentTitle(d)}
                 </Link>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
                   <span className="font-mono text-zinc-400">{shortSha(d.commitSha)}</span>

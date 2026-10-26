@@ -19,7 +19,7 @@ import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { absoluteTime, durationBetween, relativeTime, shortSha } from "@/lib/format";
 import { useQuery, useTick } from "@/lib/hooks";
-import { canCancel, canRollback, FAILURE_LABEL, isInProgress, isPipelineStep, stepForFailure } from "@/lib/status";
+import { canCancel, canRollback, deploymentTitle, FAILURE_LABEL, isInProgress, isPipelineStep, stepForFailure } from "@/lib/status";
 import type { Deployment, DeploymentStatus, FailureReason, LogLine, PipelineStep } from "@/lib/types";
 import { useEventStream } from "@/lib/useEventStream";
 
@@ -200,7 +200,7 @@ export default function DeploymentPage() {
             {isLiveNow && <span className="text-xs font-medium text-emerald-400">Serving traffic</span>}
           </div>
           <h1 className="truncate text-2xl font-semibold tracking-tight text-zinc-50">
-            {d.commitMessage?.split("\n")[0] || `Deployment ${d.id.slice(0, 8)}`}
+            {deploymentTitle(d)}
           </h1>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-zinc-400">
             <span className="inline-flex items-center gap-1.5">
@@ -261,6 +261,7 @@ export default function DeploymentPage() {
           stoppedAt={stoppedStep(d, status, lastStep)}
           enteredAt={enteredAt}
           finishedAt={d.finishedAt}
+          skipped={d.trigger === "ROLLBACK" ? ["BUILDING"] : []}
         />
       </Card>
 

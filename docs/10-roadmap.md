@@ -6,7 +6,7 @@ Scope is frozen ([DECISIONS D-003](DECISIONS.md)): Milestone 1 plus the agent. E
 |-----|------|------|--------|
 | 1 | Sun 26 Oct | Backend core: all 11 modules, migrations, job queue, build and deploy pipeline, agent, unit, integration and architecture tests. Docs rewritten to the rubric. | ✅ done: 104 tests green |
 | 2 | Mon 27 Oct | End-to-end on real Docker: build and run `hello-node` and `hello-spring` through Traefik. Fix what breaks. | ✅ hello-node verified (deploy, zero-downtime swap 0/1,340 errors, failure + agent, rollback) · ✅ hello-spring live in 55 s; job reclaimed by the reaper after a Docker crash |
-| 3 | Tue 28 Oct | Dashboard (Next.js): login, projects, deploy, live logs, pipeline stepper, agent card, env vars, rollback | ✅ built · ⏳ full click-through |
+| 3 | Tue 28 Oct | Dashboard (Next.js): login, projects, deploy, live logs, pipeline stepper, agent card, env vars, rollback | ✅ built and clicked through: projects, deploy page, agent card, env add/delete, runtime logs, settings, rollback |
 | 4 | Wed 29 Oct | Real GitHub path: OAuth app, public sample repos, a webhook via smee.io. CI on GitHub Actions. | ✅ CI workflow · ⏳ OAuth app and public repos |
 | 5 | Thu 30 Oct | Polish: error states, empty states, README quick-start, screenshots in docs | ✅ README, docs 08–09 · ⏳ screenshots |
 | 6 | Fri 31 Oct | Demo rehearsal with the presenter, record the backup video, freeze `v1.0.0` | ⏳ |
