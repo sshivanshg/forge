@@ -17,26 +17,47 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
- * Base class for integration tests: the full Spring context against a real PostgreSQL in a
- * container (never H2, so SQL like {@code FOR UPDATE SKIP LOCKED} and partial indexes is really
- * exercised). One container is shared by all test classes.
+ * Base class for integration tests: the full Spring context against a real PostgreSQL (never H2, so
+ * SQL like {@code FOR UPDATE SKIP LOCKED} and partial indexes is really exercised).
+ *
+ * <p>The database is {@code FORGE_TEST_DB_URL} when set (a local Postgres, e.g. on a Mac running
+ * Apple containers instead of Docker); otherwise one Testcontainers Postgres shared by all test
+ * classes (CI).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 public abstract class AbstractIntegrationTest {
 
-  static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+  private static final String EXTERNAL_URL = System.getenv("FORGE_TEST_DB_URL");
+
+  static final PostgreSQLContainer<?> POSTGRES =
+      EXTERNAL_URL == null || EXTERNAL_URL.isBlank()
+          ? new PostgreSQLContainer<>("postgres:16-alpine")
+          : null;
 
   static {
-    POSTGRES.start();
+    if (POSTGRES != null) {
+      POSTGRES.start();
+    }
   }
 
   @DynamicPropertySource
   static void database(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
+    if (POSTGRES != null) {
+      registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+      registry.add("spring.datasource.username", POSTGRES::getUsername);
+      registry.add("spring.datasource.password", POSTGRES::getPassword);
+    } else {
+      registry.add("spring.datasource.url", () -> EXTERNAL_URL);
+      registry.add("spring.datasource.username", () -> env("FORGE_TEST_DB_USER", "forge"));
+      registry.add("spring.datasource.password", () -> env("FORGE_TEST_DB_PASSWORD", "forge"));
+    }
+  }
+
+  private static String env(String name, String fallback) {
+    String value = System.getenv(name);
+    return value == null || value.isBlank() ? fallback : value;
   }
 
   @Autowired protected MockMvc mvc;

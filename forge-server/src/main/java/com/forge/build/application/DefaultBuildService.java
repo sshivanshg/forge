@@ -88,8 +88,10 @@ class DefaultBuildService implements BuildService {
           properties.timeout(),
           line -> logs.append(request.deploymentId(), LogSource.BUILD, line));
 
-      say(request, "Pushing image to " + properties.registry());
-      images.push(imageRef, line -> logs.append(request.deploymentId(), LogSource.BUILD, line));
+      if (properties.usesRegistry()) {
+        say(request, "Pushing image to " + properties.registry());
+        images.push(imageRef, line -> logs.append(request.deploymentId(), LogSource.BUILD, line));
+      }
       say(request, "Image ready: " + imageRef);
       return new BuildResult(imageRef, type, commit);
     } finally {
@@ -99,11 +101,8 @@ class DefaultBuildService implements BuildService {
 
   /** Deterministic tag: the same commit always produces the same image name (safe retries). */
   String imageRef(BuildRequest request) {
-    return properties.registry()
-        + "/forge/"
-        + request.projectSlug()
-        + ":"
-        + shortSha(request.commitSha());
+    String prefix = properties.usesRegistry() ? properties.registry() + "/" : "";
+    return prefix + "forge/" + request.projectSlug() + ":" + shortSha(request.commitSha());
   }
 
   private CommitInfo checkout(BuildRequest request, Path workspace) {

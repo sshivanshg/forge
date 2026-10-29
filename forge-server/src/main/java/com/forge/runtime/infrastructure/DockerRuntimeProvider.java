@@ -26,10 +26,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Adapter: runs user apps as Docker containers.
+ * Adapter: runs user apps as Docker containers (active when {@code forge.engine=docker}).
  *
  * <p>Isolation: memory and CPU limits, a process limit, {@code no-new-privileges}, and a dedicated
  * network that contains only apps and the reverse proxy (not our database). The app's port is also
@@ -37,6 +38,7 @@ import org.springframework.stereotype.Component;
  * traffic reaches it.
  */
 @Component
+@ConditionalOnProperty(name = "forge.engine", havingValue = "docker")
 class DockerRuntimeProvider implements RuntimeProvider {
 
   private static final Logger log = LoggerFactory.getLogger(DockerRuntimeProvider.class);

@@ -40,6 +40,7 @@ public class SecurityConfig {
     "/api/v1/auth/logout",
     "/api/v1/webhooks/**",
     "/api/v1/github/callback",
+    "/internal/routing", // checked with its own token (RoutingController)
     "/actuator/health/**",
     "/actuator/prometheus",
     "/swagger-ui/**",

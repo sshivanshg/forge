@@ -11,7 +11,7 @@ spring:
     virtual:
       enabled: true # Java 21 virtual threads for request handling, @Async and scheduling
   datasource:
-    url: ${FORGE_DB_URL:jdbc:postgresql://localhost:5433/forge}
+    url: ${FORGE_DB_URL:jdbc:postgresql://localhost:5432/forge}
     username: ${FORGE_DB_USER:forge}
     password: ${FORGE_DB_PASSWORD:forge}
   jpa:
@@ -80,14 +80,18 @@ forge:
     poll-interval: 2s
     lease: 5m
     max-concurrent: 2
+  # Container engine for user apps: apple (Apple container, default) or docker
+  engine: ${FORGE_ENGINE:apple}
   build:
-    registry: ${FORGE_REGISTRY:localhost:5001}
+    registry: ${FORGE_REGISTRY:}
+    builder-memory-mb: 2048
     timeout: 10m
     workspace-dir: ${FORGE_WORKSPACE_DIR:${java.io.tmpdir}/forge-builds}
   runtime:
     network: forge-apps
     memory-mb: 512
     cpus: 1.0
+    routing-token: ${FORGE_ROUTING_TOKEN:}
   deploy:
     health-timeout: 90s
     drain-delay: 3s

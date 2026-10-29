@@ -1,6 +1,8 @@
 # Test profile: fixed, throwaway secrets (never used outside tests) and no background workers,
 # so tests drive the job pipeline deterministically.
 forge:
+  runtime:
+    routing-token: test-routing-token
   crypto:
     encryption-key: 9QIsV2zpg1heKNMOI6zOOR3GTXOgypkgdEliLL5hMy0=
   identity:

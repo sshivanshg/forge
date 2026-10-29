@@ -9,14 +9,17 @@ import java.nio.file.Path;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * One shared Docker Engine API client, used by the build module (image builds and pushes) and the
- * runtime module (containers). Both only see it through their own adapters.
+ * Active when {@code forge.engine=docker}. One shared Docker Engine API client, used by the build
+ * module (image builds and pushes) and the runtime module (containers). Both only see it through
+ * their own adapters.
  */
 @Configuration
+@ConditionalOnProperty(name = "forge.engine", havingValue = "docker")
 public class DockerConfig {
 
   private static final Logger log = LoggerFactory.getLogger(DockerConfig.class);
