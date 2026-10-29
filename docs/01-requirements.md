@@ -16,7 +16,7 @@ Putting a web app online normally means writing a Dockerfile, building and pushi
 | **GitHub** | External system | Hosts the code; authenticates users (OAuth); sends push webhooks |
 | **Forge Agent** | Internal autonomous actor | Observes failed deployments, reasons about the cause, reports a diagnosis. Never changes anything without the developer. |
 | **Job Worker** | Internal system actor | Background worker that executes build and deploy jobs from the queue |
-| **Docker Engine / Traefik** | External system (data plane) | Runs the app containers and routes `<slug>.localhost` traffic to them |
+| **Container engine / Traefik** | External system (data plane) | Runs the app containers (Apple container by default, one lightweight VM per app; Docker as the alternative) and routes `<slug>.localhost` traffic to them |
 | **Visitor** | Secondary, human | Uses the deployed app through its public URL |
 | **Mail server** | External system | Delivers deployment notifications |
 
@@ -71,8 +71,8 @@ flowchart LR
 | **Primary actor** | Developer |
 | **Preconditions** | Logged in; owns the project; repository reachable |
 | **Trigger** | Clicks **Deploy** (`POST /projects/{id}/deployments`) |
-| **Main flow** | 1. Forge resolves the branch head to an exact commit SHA. 2. Forge records a `QUEUED` deployment and a BUILD job **in one transaction**, cancelling older still-queued deployments. 3. API answers **202 Accepted** immediately. 4. A worker claims the job → `BUILDING`: clone that SHA, detect the stack, build and push the image. 5. → `DEPLOYING`: start the new container next to the old one. 6. → `HEALTH_CHECKING`: poll the health path. 7. Healthy → `LIVE`; the previous deployment becomes `SUPERSEDED` and its container is stopped. 8. Owner is notified. |
-| **Alternative flows** | 4a. Another deployment of the project is running → the job is postponed, not failed. 4b. Build fails → `FAILED (BUILD_FAILED)`; the agent diagnoses (UC13). 6a. Unhealthy or crashed → the new container is removed, `FAILED (UNHEALTHY)`, **the old version keeps serving**; the agent diagnoses. 4c/5a. Docker temporarily unavailable → the job is retried with exponential backoff, then dead-lettered → `FAILED (RUNTIME_ERROR/INTERNAL_ERROR)`. |
+| **Main flow** | 1. Forge resolves the branch head to an exact commit SHA. 2. Forge records a `QUEUED` deployment and a BUILD job **in one transaction**, cancelling older still-queued deployments. 3. API answers **202 Accepted** immediately. 4. A worker claims the job → `BUILDING`: clone that SHA, detect the stack, build the image. 5. → `DEPLOYING`: start the new container next to the old one. 6. → `HEALTH_CHECKING`: poll the health path. 7. Healthy → `LIVE`; the previous deployment becomes `SUPERSEDED` and its container is stopped. 8. Owner is notified. |
+| **Alternative flows** | 4a. Another deployment of the project is running → the job is postponed, not failed. 4b. Build fails → `FAILED (BUILD_FAILED)`; the agent diagnoses (UC13). 6a. Unhealthy or crashed → the new container is removed, `FAILED (UNHEALTHY)`, **the old version keeps serving**; the agent diagnoses. 4c/5a. The container engine is temporarily unavailable → the job is retried with exponential backoff, then dead-lettered → `FAILED (RUNTIME_ERROR/INTERNAL_ERROR)`. |
 | **Postconditions** | Exactly one LIVE deployment per project (or the previous one if this failed); full audit trail in `deployment_events`. |
 
 ### UC6 — Auto-deploy on push
@@ -96,7 +96,7 @@ Allowed only in `QUEUED` or `BUILDING` (409 otherwise). A cancelled build's imag
 | FR-3 | Project CRUD: name, unique DNS-safe slug, repo, branch, root dir, build type, port, health path, auto-deploy. Owner-only access. | `project` |
 | FR-4 | Environment variables are encrypted at rest, masked when read, and decrypted only when a container starts. | `project` |
 | FR-5 | A deploy request pins a commit, records `QUEUED` and the job atomically, and returns `202`. | `deployment` |
-| FR-6 | Build pipeline: shallow clone of the exact SHA → detect the stack (Dockerfile / Maven / Gradle / Node) → generate a Dockerfile if needed → `docker build` → push to the registry. | `build`, `source` |
+| FR-6 | Build pipeline: shallow clone of the exact SHA → detect the stack (Dockerfile / Maven / Gradle / Node) → generate a Dockerfile if needed → build the image with the container engine (`container build`; `docker build` on the Docker engine). The image stays in the engine's local store; it is pushed only if a registry is configured. | `build`, `source` |
 | FR-7 | Every deployment follows the state machine. Illegal transitions are rejected and every transition is audited. | `deployment.domain` |
 | FR-8 | Blue-green rollout: a new container is health-checked before the old one is stopped. A failure leaves the old one serving. | `deployment.application.BlueGreenRollout` |
 | FR-9 | Live build/deploy logs over Server-Sent Events, with resume (`Last-Event-ID`), and live runtime logs of the running app. | `logs`, `deployment` |
@@ -119,14 +119,14 @@ Allowed only in `QUEUED` or `BUILDING` (409 otherwise). A cancelled build's imag
 | **Security** | No plaintext secrets at rest, in logs, or in prompts | BCrypt, hashed refresh tokens, AES-GCM, an HMAC-verified webhook, ownership checks (404 not 403), secret redaction before the agent sees logs, resource-limited containers |
 | **Observability** | Every log line is traceable | Correlation id per request and deployment id per job in the MDC. Micrometer metrics at `/actuator/prometheus`. |
 | **Maintainability** | Modules cannot silently couple | Spring Modulith and ArchUnit tests fail the build on boundary violations |
-| **Testability** | Core logic tested against real infrastructure | 104 tests: unit, Testcontainers (real Postgres), architecture |
-| **Portability** | One command starts the infrastructure | `docker compose -f infra/docker-compose.yml up -d` |
+| **Testability** | Core logic tested against real infrastructure | 110 tests: unit, integration against a real Postgres (local or Testcontainers), architecture |
+| **Portability** | One command starts the infrastructure; the container engine is swappable | `scripts/infra.sh up` (Apple container, default). `forge.engine=docker` + `infra/docker-compose.yml` on Linux and CI. |
 
 ## 7. Scope
 
 **In scope (built):** everything in §5.
 
-**Out of scope (future work, presented on the "how it scales" slide):** Kafka instead of the Postgres queue, Redis (rate limiting, idempotency keys, multi-instance log fan-out), Kubernetes runtime, AWS deployment, autoscaling, teams and billing, microVM isolation for untrusted code.
+**Out of scope (future work, presented on the "how it scales" slide):** Kafka instead of the Postgres queue, Redis (rate limiting, idempotency keys, multi-instance log fan-out), Kubernetes runtime, AWS deployment, autoscaling, teams and billing, microVM isolation for untrusted code on the Docker engine (Apple container already runs each app in its own VM).
 
 ## 8. Supported app types
 

@@ -72,7 +72,7 @@ sequenceDiagram
     DC-->>B: MAVEN / NODE / GRADLE / DOCKERFILE
     B->>F: forType(type).prepare(dir, port)
     F-->>B: Dockerfile path
-    B->>I: build(...) then push(...)
+    B->>I: build(...) via container build (push(...) only if a registry is configured)
     I->>L: every output line
     L-->>UI: event "log"
     B-->>H: BuildResult(imageRef, commit)
@@ -89,33 +89,39 @@ sequenceDiagram
     participant H as DeployJobHandler
     participant T as DeploymentTransitions
     participant BG as BlueGreenRollout
-    participant RT as DockerRuntimeProvider
+    participant RT as RuntimeProvider (Apple container)
     participant HP as HttpHealthProbe
+    participant RC as RoutingController
     participant TR as Traefik
     participant UI as Browser (SSE)
 
     H->>T: beginDeploy(id)
     H->>BG: rollout(context with decrypted env)
     BG->>RT: start(ContainerSpec) → green
-    RT-->>BG: RunningInstance(id, http://127.0.0.1:port)
+    Note over RT: container run in a new VM with routing labels, then routing table refresh
+    RT-->>BG: RunningInstance(id, http://192.168.64.x:port)
     BG->>T: recordInstance + beginHealthCheck
     loop every 2 s up to 90 s, stop early if the container exits
         BG->>HP: GET /health
     end
     alt healthy
-        BG->>RT: promote(green) (restart policy: unless-stopped)
+        BG->>RT: promote(green) (no-op on Apple container, restart policy on Docker)
         BG->>T: goLive(id): LIVE, previous → SUPERSEDED, project.liveDeploymentId
+        TR->>RC: polls GET /internal/routing (every 1 s)
+        RC-->>TR: routes from AppleRoutingTable: blue and green share one service
         TR->>TR: green passes the Traefik health check and receives traffic
         BG->>RT: stop(blue) after a 3 s drain
         T-->>UI: status LIVE, done
     else unhealthy
         BG->>RT: recentOutput(green) → RUNTIME log lines
-        BG->>RT: stop(green)
+        BG->>RT: stop(green) (routing table refresh drops it)
         BG->>T: fail(id, UNHEALTHY, detail)
         Note over TR: blue was never touched, so the site stays up
         T-->>UI: status FAILED, done
     end
 ```
+
+On the Docker engine (`forge.engine=docker`), `RuntimeProvider` is `DockerRuntimeProvider`, the instance URL is a published port on 127.0.0.1, and Traefik reads the container's Docker labels instead of polling `/internal/routing`. `BlueGreenRollout` is the same code in both cases.
 
 ## 2. Sequence: Failure diagnosis by the agent (UC13)
 
@@ -244,7 +250,7 @@ flowchart TD
     cancelled -- no, cancelled --> stopA([End: CANCELLED])
     cancelled -- yes --> busy{Another deploy<br/>of project in progress?}
     busy -- yes --> postpone[Postpone 15 s<br/>attempt not used] --> wait
-    busy -- no --> building[BUILDING: clone, detect, build, push]
+    busy -- no --> building[BUILDING: clone, detect, build<br/>push only if a registry is set]
     building --> buildok{Build ok?}
     buildok -- no --> failB[FAILED: BUILD_FAILED / TIMEOUT /<br/>SOURCE_UNAVAILABLE / PUSH_FAILED]
     buildok -- yes --> stillb{Cancelled during build?}
@@ -252,7 +258,7 @@ flowchart TD
     stillb -- no --> deploying[DEPLOYING + DEPLOY job]
     deploying --> start2[Start green container]
     start2 --> startok{Started?}
-    startok -- "no (Docker error)" --> retry{Attempts left?}
+    startok -- "no (engine error)" --> retry{Attempts left?}
     retry -- yes --> backoff[Retry with backoff] --> start2
     retry -- no --> failR[FAILED: RUNTIME_ERROR]
     startok -- yes --> hc[HEALTH_CHECKING: poll health path]

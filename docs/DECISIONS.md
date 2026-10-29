@@ -4,6 +4,29 @@ Scope decisions, newest first. **When a decision here conflicts with another doc
 
 ---
 
+## D-004 — User apps run on Apple container, not Docker (2026-10-29)
+
+**Context:** Docker Desktop was removed from the development Mac (it crashed under memory pressure and corrupted its image store), and we were asked to use Apple's own container runtime instead.
+
+**Decision:** the default engine is **Apple `container`** (`forge.engine=apple`). Each app runs in its own lightweight Linux VM. The Docker adapters stay behind `forge.engine=docker` for Linux machines and CI.
+
+**What changed, and what didn't:**
+| Concern | Docker (before) | Apple container (now) |
+|---------|-----------------|-----------------------|
+| Build | `DockerImageBuilder` (docker-java) | `AppleContainerImageBuilder` (`container build`) |
+| Run | `DockerRuntimeProvider` | `AppleContainerRuntimeProvider` (`container run`) |
+| Image store | local registry on :5001, push after build | the engine's local store; no registry, no push |
+| Routing | Traefik reads Docker labels | Traefik polls Forge's routing table (`GET /internal/routing`), built from container labels |
+| Health checks | published port on 127.0.0.1 | the app VM's own IP (192.168.64.x) |
+| Postgres | container on :5433 | local PostgreSQL 16 on :5432 |
+| Pipeline, state machine, jobs, agent | — | **unchanged** |
+
+**Why it matters for the design:** the pipeline depends only on the `ImageBuilder` and `RuntimeProvider` interfaces, so swapping the engine meant adding adapters and changing wiring, with no edits to the deployment module. This is Dependency Inversion and Liskov Substitution doing their job.
+
+**Trade-offs:** Apple container is macOS-only (Apple silicon, macOS 26+), reports no exit codes (the agent reads logs instead), and needs at least 200 MiB per container. In exchange, apps are isolated by a VM rather than a shared kernel.
+
+---
+
 ## D-003 — Scope frozen for the November evaluation (2026-10-26)
 
 **Context:** the final evaluation moved to the first week of November and is assessed on the 10 LLD criteria (requirements, class diagram, OOP, SOLID, patterns, sequence/activity diagrams, API design, DB schema, error handling, working implementation that matches the design exactly).

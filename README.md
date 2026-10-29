@@ -5,7 +5,7 @@
 **Problem statement:** Design and Development of a Scalable Cloud-Native Application Deployment and Orchestration Platform.
 
 ```
-git push ─► webhook ─► job queue ─► clone ─► detect ─► docker build ─► registry ─► start green ─► health check ─► switch traffic ─► LIVE
+git push ─► webhook ─► job queue ─► clone ─► detect ─► container build ─► start green (own VM) ─► health check ─► switch traffic ─► LIVE
                                                                                                          └─ unhealthy ─► keep blue ─► agent diagnosis
 ```
 
@@ -22,7 +22,15 @@ git push ─► webhook ─► job queue ─► clone ─► detect ─► docke
 
 ## Quick start
 
-Prerequisites: Java 21, Docker Desktop, Node 22.
+Prerequisites:
+- macOS 26 or later on Apple silicon, with Apple [`container`](https://github.com/apple/container) installed and started (`container system start`)
+- Java 21 and Node 22
+- PostgreSQL 16 from Homebrew (`brew install postgresql@16 && brew services start postgresql@16`), with a role and database named `forge`:
+
+```bash
+createuser forge --pwprompt   # password: forge (the default in application.yml)
+createdb --owner forge forge
+```
 
 ```bash
 cp .env.example .env
@@ -31,8 +39,10 @@ cp .env.example .env
 Fill in `FORGE_ENCRYPTION_KEY` and `FORGE_JWT_SECRET` (each from `openssl rand -base64 32`), then:
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d
+scripts/infra.sh up
 ```
+
+This starts Traefik and Mailpit as Apple containers. The first run adds a `FORGE_ROUTING_TOKEN` to `.env`; Traefik sends it when it polls Forge's routing table. Each deployed app runs in its own lightweight VM.
 
 ```bash
 ./mvnw -pl forge-server spring-boot:run
@@ -52,11 +62,13 @@ cd forge-dashboard && npm install && npm run dev
 
 To demo without GitHub, run `scripts/demo-repos.sh` and follow [the demo script](docs/09-viva-guide.md#6-demo-script-about-8-minutes).
 
-Run all tests (unit, Testcontainers integration, architecture, coverage gate):
+Run all tests (unit, integration, architecture, coverage gate). On a Mac without Docker, point the integration tests at a local database (create `forge_test` the same way as `forge`):
 
 ```bash
-./mvnw verify
+FORGE_TEST_DB_URL=jdbc:postgresql://localhost:5432/forge_test ./mvnw verify
 ```
+
+Without `FORGE_TEST_DB_URL` (for example in CI), the integration tests start Postgres with Testcontainers.
 
 ## Design documents
 
@@ -81,7 +93,7 @@ Run all tests (unit, Testcontainers integration, architecture, coverage gate):
 | Language | **Java 21** (records, sealed types, virtual threads). The dashboard is the only non-Java code. |
 | Framework | Spring Boot 3.5 (Web, Security, Data JPA, Validation, Actuator, Mail), Spring Modulith |
 | Database | PostgreSQL 16 + Flyway; also the job queue (`FOR UPDATE SKIP LOCKED`) |
-| Containers | Docker via docker-java; local registry; Traefik v3 for routing |
+| Containers | **Apple container** (default): one lightweight VM per app, images kept in the engine's local store. **Docker** via docker-java as the alternative (`forge.engine=docker`, for Linux and CI). Traefik v3 for routing. |
 | Git | JGit; GitHub OAuth and webhooks |
 | Agent | Anthropic Messages API (optional) with a rule-based fallback |
 | Frontend | Next.js 16 + Tailwind |
@@ -95,8 +107,8 @@ Future work (not built for this milestone): Kafka with a transactional outbox, R
 ```
 forge-server/      Spring Boot control plane (11 modules under com.forge)
 forge-dashboard/   Next.js dashboard
-infra/             docker-compose: Postgres, registry, Traefik, Mailpit
+infra/             docker-compose for the Docker engine only (Postgres, registry, Traefik, Mailpit)
 sample-apps/       hello-node and hello-spring, used for demos and tests
-scripts/           offline demo: local Git repos and signed webhook pushes
+scripts/           infra.sh (Traefik and Mailpit on Apple container); offline demo: local Git repos and signed webhook pushes
 docs/              design documents 01–10 and the decision log
 ```

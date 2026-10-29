@@ -57,7 +57,7 @@ classDiagram
 | `NOT_ROLLBACKABLE` | 422 | Rollback target never went live or has no image |
 | `GITHUB_NOT_CONNECTED` | 422 | Listing repos without a connection |
 | `GITHUB_OAUTH_NOT_CONFIGURED` | 503 | OAuth app env vars missing |
-| `EXTERNAL_SERVICE_FAILED` | 502 | GitHub, Docker or registry error |
+| `EXTERNAL_SERVICE_FAILED` | 502 | GitHub, container engine (Apple container or Docker) or registry error |
 | `INTERNAL_ERROR` | 500 | Bug: logged with the correlation id |
 
 ## 2. Validation in three layers (defence in depth)
@@ -83,10 +83,10 @@ classDiagram
 | 9 | Deploy while another build of the project runs | The new job is **postponed** (not failed) until the project is free | `waitIfProjectBusy` |
 | 10 | Branch moves between "Deploy" and the build starting | The exact recorded SHA is built (deepen the clone, check out that SHA) | `JGitSourceCodeProvider.checkout` |
 | 11 | No Dockerfile, pom.xml, build.gradle or package.json | `FAILED (UNSUPPORTED_PROJECT)` with a helpful message, and the agent explains | `DetectorChain` |
-| 12 | Build runs forever | Killed at 10 min → `FAILED (BUILD_TIMEOUT)` | `DockerImageBuilder.build` |
-| 13 | Registry push blips | Retried 3× with backoff (Decorator) | `RetryingImageBuilder` |
+| 12 | Build runs forever | The `container build` process is killed at 10 min → `FAILED (BUILD_TIMEOUT)` | `AppleContainerImageBuilder.build` via `ContainerCli.stream` (`DockerImageBuilder.build` on the Docker engine) |
+| 13 | Registry push blips (only when a registry is configured, e.g. the Docker engine) | Retried 3× with backoff (Decorator) | `RetryingImageBuilder` |
 | 14 | User cancels mid-build | The build finishes in the background, `completeBuild` sees `CANCELLED`, and the image is discarded | `DeploymentTransitions.completeBuild` |
-| 15 | New version crashes on boot | The probe notices the container exited and fails **fast** (no 90 s wait). Its output is captured, the container removed. **Old version keeps serving.** | `HttpHealthProbe`, `BlueGreenRollout.rejectGreen` |
+| 15 | New version crashes on boot | The probe notices the container stopped and fails **fast** (no 90 s wait). Its output is captured, the container removed. **Old version keeps serving.** Apple container reports no exit codes, so the failure detail says "process exited (see the app's last log lines)" and the agent finds the reason in the captured logs. | `HttpHealthProbe`, `BlueGreenRollout.rejectGreen`, `AppleContainerRuntimeProvider.exitDescription` |
 | 16 | App listens on the wrong port | `FAILED (UNHEALTHY)`. The agent says `PORT_MISMATCH` and quotes the app's own "listening on 3000" line. | `DiagnosisRules.PortMismatch` |
 | 17 | Health path returns 404 | Agent: `HEALTH_PATH_NOT_FOUND`, suggests `/actuator/health` | `DiagnosisRules.HealthPathNotFound` |
 | 18 | Rollback to a deployment that failed | `422 NOT_ROLLBACKABLE` | `Deployment.rollbackTo` |
@@ -98,12 +98,14 @@ classDiagram
 | 24 | LLM returns prose or invalid JSON, or times out | Ignored. The rule engine answers. | `ClaudeDiagnosisEngine.parse` |
 | 25 | Deleting a project with a live app | Containers are stopped **before** rows are deleted (synchronous event) | `ProjectDeleting` → `DeploymentService.onProjectDeleting` |
 | 26 | Too many env vars or a huge value | `400` (max 100 variables, 32 KB per value) | `EnvironmentService` |
+| 27 | Container memory set too low | Apple container needs at least 200 MiB per container, so `forge.runtime.memory-mb` must stay at or above 200 (default 512; the build VM gets `forge.build.builder-memory-mb`, default 2048) | `application.yml`, `AppleContainerRuntimeProvider.start` |
+| 28 | Traefik (or anyone else) asks for the routing table without the token | `401`, empty body | `RoutingController` |
 
 ## 4. Failure handling in background work
 
 | Failure | Classification | Outcome |
 |---------|----------------|---------|
-| Docker or GitHub unreachable (`ExternalServiceException`) | Retryable | Backoff 10 s → 20 s → 40 s … (max 5 min), then `DEAD` → deployment `FAILED` |
+| Container engine or GitHub unreachable (`ExternalServiceException`, e.g. `container` not started) | Retryable | Backoff 10 s → 20 s → 40 s … (max 5 min), then `DEAD` → deployment `FAILED` |
 | Optimistic-lock conflict | Retryable | Re-run with fresh state |
 | Build failed (user code) | Not retryable, recorded | Job `SUCCEEDED` (it recorded the failure), deployment `FAILED` |
 | Bug (any other exception) | Not retryable | Job `FAILED`, deployment `FAILED (INTERNAL_ERROR)`, stack trace in the logs |

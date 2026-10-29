@@ -10,7 +10,7 @@
 | `A o-- B` | **Aggregation**: A holds a collection of B, but B lives on its own | DetectorChain ◇— BuildTypeDetector |
 | `A --> B` | **Association**: A references B | Deployment → Project (by id) |
 | `A <\|-- B` | **Inheritance**: B extends A | AbstractJobHandler ◁— BuildJobHandler |
-| `A <\|.. B` | **Realisation**: B implements interface A | RuntimeProvider ◁┈ DockerRuntimeProvider |
+| `A <\|.. B` | **Realisation**: B implements interface A | RuntimeProvider ◁┈ AppleContainerRuntimeProvider |
 | `A ..> B` | **Dependency**: A uses B transiently | BlueGreenRollout ┈> ContainerSpec |
 
 Numbers on the ends are multiplicities (`1`, `0..1`, `0..*`, `1..*`).
@@ -245,7 +245,19 @@ classDiagram
         +build(ctx, dockerfile, image, timeout, out) void
         +push(image, out) void
     }
-    class DockerImageBuilder
+    class AppleContainerImageBuilder {
+        -ContainerCli cli
+        -int builderMemoryMb
+    }
+    class DockerImageBuilder {
+        -DockerClient docker
+    }
+    class ContainerCli {
+        -String binary
+        +run(timeout, args) Result
+        +stream(timeout, lines, args) int
+        +follow(lines, args) Closeable
+    }
     class RetryingImageBuilder {
         -ImageBuilder delegate
         -int maxAttempts
@@ -270,10 +282,14 @@ classDiagram
     TemplateBuildStrategy <|-- GradleBuildStrategy
     TemplateBuildStrategy <|-- NodeBuildStrategy
     BuildStrategyFactory "1" o-- "1..*" BuildStrategy
+    ImageBuilder <|.. AppleContainerImageBuilder
     ImageBuilder <|.. DockerImageBuilder
+    AppleContainerImageBuilder --> ContainerCli
     ImageBuilder <|.. RetryingImageBuilder
     RetryingImageBuilder "1" o-- "1" ImageBuilder : decorates
 ```
+
+`ImageBuilderConfig` picks the adapter from `forge.engine`: `AppleContainerImageBuilder` (`container build`, the default) or `DockerImageBuilder` (docker-java, `forge.engine=docker`), and wraps it in `RetryingImageBuilder`. `ContainerCli` (in `shared.container`) is the only class that starts `container` processes.
 
 ## 3. Deployment pipeline, runtime and jobs
 
@@ -345,10 +361,40 @@ classDiagram
         +promote(id) void
         +stop(id) void
         +isRunning(id) boolean
+        +exitDescription(id) String
         +recentOutput(id, n) List~String~
         +followOutput(id, tail, consumer) Closeable
     }
-    class DockerRuntimeProvider
+    class AppleContainerRuntimeProvider {
+        -ContainerCli cli
+        -AppleContainers containers
+        -RoutingTable routing
+    }
+    class DockerRuntimeProvider {
+        -DockerClient docker
+    }
+    class RoutingTable {
+        <<interface>>
+        +current() Map
+        +refresh() void
+    }
+    class AppleRoutingTable {
+        -AppleContainers containers
+        +current() Map
+        +refresh() void
+    }
+    class AppleContainers {
+        +list() List~Info~
+        +inspect(id) Optional~Info~
+    }
+    class ContainerCli {
+        +run(timeout, args) Result
+        +stream(timeout, lines, args) int
+        +follow(lines, args) Closeable
+    }
+    class RoutingController {
+        +routing(token) ResponseEntity
+    }
     class ContainerSpec {
         <<record>>
         +builder()$ Builder
@@ -385,9 +431,19 @@ classDiagram
     BlueGreenRollout --> RuntimeProvider
     BlueGreenRollout --> HealthProbe
     BlueGreenRollout ..> ContainerSpec : builds
+    RuntimeProvider <|.. AppleContainerRuntimeProvider
     RuntimeProvider <|.. DockerRuntimeProvider
+    AppleContainerRuntimeProvider --> ContainerCli
+    AppleContainerRuntimeProvider --> AppleContainers
+    AppleContainerRuntimeProvider --> RoutingTable : refresh after start/stop
+    RoutingTable <|.. AppleRoutingTable
+    AppleRoutingTable --> AppleContainers
+    AppleContainers --> ContainerCli
+    RoutingController --> RoutingTable : GET /internal/routing
     HealthProbe <|.. HttpHealthProbe
 ```
+
+Only one `RuntimeProvider` exists at runtime. `AppleRuntimeConfig` wires `AppleContainerRuntimeProvider` and `AppleRoutingTable` when `forge.engine=apple` (the default); `DockerRuntimeProvider` (with `TraefikLabels`) is active when `forge.engine=docker`. `AppleRoutingTable` rebuilds Traefik's configuration (via `TraefikRoutes`) from the labels on the running containers, so nothing is kept only in memory. `BlueGreenRollout` sees only `RuntimeProvider`; the `deployment` module had no changes when the Apple adapters were added.
 
 ## 4. Agent, logs and notifications
 
@@ -487,7 +543,7 @@ classDiagram
 | Principle | Where | Explanation |
 |-----------|-------|-------------|
 | **Encapsulation** | `Deployment` has **no setters**. The status only changes through `startBuild()`, `goLive()` and the like, which all funnel into the private `transitionTo()`. `EnvironmentVariable` only ever holds ciphertext. `Project` validates every change. | The object protects its own invariants; nobody can set `status = LIVE` from outside. |
-| **Abstraction** | `RuntimeProvider`, `BuildService`, `SourceCodeProvider`, `HealthProbe`, `JobQueue`, `LogSink` | Callers see *what* (start a container, build an image), never *how* (docker-java, JGit, SQL). |
+| **Abstraction** | `RuntimeProvider`, `BuildService`, `SourceCodeProvider`, `HealthProbe`, `JobQueue`, `LogSink` | Callers see *what* (start a container, build an image), never *how* (Apple `container`, docker-java, JGit, SQL). |
 | **Inheritance** | `AbstractJobHandler` → `BuildJobHandler`, `DeployJobHandler`. `TemplateBuildStrategy` → `MavenBuildStrategy`, `GradleBuildStrategy`, `NodeBuildStrategy`. `MarkerFileDetector` → 4 detectors. `ForgeException` → `NotFoundException`, `ValidationException`, `ExternalServiceException`, `IllegalStateTransitionException`. `Deployment` → `AbstractAggregateRoot`. | Shared behaviour is written once in the parent. |
 | **Polymorphism** | `DetectorChain` iterates `List<BuildTypeDetector>`. `JobRunner` calls `handler.handle(job)` without knowing which handler. `FailureInvestigator` asks each `DiagnosisEngine`. `GlobalExceptionHandler` maps any `ForgeException` by its `ErrorCode`. | One call site, many behaviours chosen at runtime. |
 | **Interfaces vs abstract classes** | Interfaces for **capabilities and ports** (no shared state). Abstract classes only where subclasses **share code** (`AbstractJobHandler` holds the metrics/MDC skeleton; `TemplateBuildStrategy` holds template loading). | Prefer interfaces; use inheritance only to remove real duplication. |
@@ -497,10 +553,10 @@ classDiagram
 | Principle | Concrete example | What it buys us |
 |-----------|------------------|-----------------|
 | **S** — Single Responsibility | `AuthController` only does HTTP. `AuthService` holds the use cases. `JwtService` only signs and verifies. `EncryptionService` only encrypts. `DeploymentTransitions` only changes state. `BlueGreenRollout` only orchestrates a rollout. `HttpHealthProbe` only probes. | Each class has one reason to change and is small enough to explain in a minute. |
-| **O** — Open/Closed | New stack (e.g. Python) = one new `BuildTypeDetector` + one `TemplateBuildStrategy` subclass + a template. New failure pattern = one new `DiagnosisRule`. New notification channel = one `NotificationChannel` bean. Push retries were added as a **decorator** without editing `DockerImageBuilder`. | Features are added by adding classes, not by editing tested ones. |
-| **L** — Liskov Substitution | Any `RuntimeProvider` can replace `DockerRuntimeProvider` in `BlueGreenRollout`. `RetryingImageBuilder` can stand wherever an `ImageBuilder` is expected. Tests substitute mocks for `BuildService`, `RuntimeProvider` and `HealthProbe` and the pipeline behaves identically. | The pipeline is correct for every implementation that honours the contract. |
+| **O** — Open/Closed | New stack (e.g. Python) = one new `BuildTypeDetector` + one `TemplateBuildStrategy` subclass + a template. New failure pattern = one new `DiagnosisRule`. New notification channel = one `NotificationChannel` bean. Push retries were added as a **decorator** without editing the image builders. A second container engine (Apple container) was added as new adapters (`AppleContainerImageBuilder`, `AppleContainerRuntimeProvider`) without editing the pipeline. | Features are added by adding classes, not by editing tested ones. |
+| **L** — Liskov Substitution | `AppleContainerRuntimeProvider` replaced `DockerRuntimeProvider` in `BlueGreenRollout` with no change to the rollout: blue-green, health checks, failure handling and rollback behave the same on both engines (verified end to end on 29 Oct). The one difference, no exit codes on Apple container, stays inside the contract: `exitDescription` returns a description and the agent reads the logs. `RetryingImageBuilder` can stand wherever an `ImageBuilder` is expected. Tests substitute mocks for `BuildService`, `RuntimeProvider` and `HealthProbe` and the pipeline behaves identically. | The pipeline is correct for every implementation that honours the contract. |
 | **I** — Interface Segregation | Logs are split into `LogSink` (write), `LogReader` (read) and `LogStreams` (live). The builder only receives `LogSink`. `ProjectCatalog` gives other modules exactly what they need, not the whole `ProjectService`. | No class depends on methods it doesn't use. |
-| **D** — Dependency Inversion | `deployment` depends on the `BuildService`, `RuntimeProvider`, `HealthProbe`, `JobQueue` and `SourceCodeProvider` **interfaces**. The Docker, JGit and Postgres adapters live in `infrastructure` packages and are injected by Spring. `ArchitectureTest` proves only adapters import Docker or JGit. | High-level policy (the pipeline) doesn't depend on low-level details (Docker), so the runtime could become Kubernetes. |
+| **D** — Dependency Inversion | `deployment` depends on the `BuildService`, `RuntimeProvider`, `HealthProbe`, `JobQueue` and `SourceCodeProvider` **interfaces**. The Apple container, Docker, JGit and Postgres adapters live in `infrastructure` packages and are injected by Spring, chosen by `forge.engine`. `ArchitectureTest` proves only adapters import docker-java or JGit. | High-level policy (the pipeline) doesn't depend on low-level details. Proven in practice: moving from Docker to Apple container ([D-004](DECISIONS.md)) added adapters and changed wiring, with **zero changes** to the `deployment` module. A Kubernetes runtime would work the same way. |
 
 ## 7. Design patterns (with justification)
 
@@ -511,14 +567,14 @@ classDiagram
 | **Factory Method** | `Deployment.request(...)`, `Deployment.rollbackTo(...)`, `User.register(...)`, `Slug.fromName(...)` | Named constructors make intent explicit and enforce creation rules (a rollback copies the image and can only target a deployment that went live). |
 | **Factory** (registry) | `BuildStrategyFactory.forType(BuildType)`. The `JobRunner` handler registry (`EnumMap<JobType, JobHandler>`). | Picks the right implementation by key, with no `if/else` chain. Validated at startup (duplicate handler fails fast). |
 | **Builder** | `ContainerSpec.builder()…build()` | A container spec has 9 fields, several optional. A builder keeps call sites readable, and the record stays immutable. |
-| **Singleton** | Every Spring bean (`EncryptionService`, `JwtService`, the shared `DockerClient`, `LogBroadcaster` …) is a single instance managed by the container. | One shared, stateless (or thread-safe) instance. No hand-written `getInstance()`, so it stays testable. |
+| **Singleton** | Every Spring bean (`EncryptionService`, `JwtService`, the shared `ContainerCli` (or `DockerClient` on the Docker engine), `LogBroadcaster` …) is a single instance managed by the container. | One shared, stateless (or thread-safe) instance. No hand-written `getInstance()`, so it stays testable. |
 
 ### Structural
 
 | Pattern | Where | Why this pattern |
 |---------|-------|------------------|
-| **Adapter** | `JGitSourceCodeProvider` (JGit → `SourceCodeProvider`), `DockerImageBuilder` and `DockerRuntimeProvider` (docker-java → our ports), `GitHubApiClient` (REST → typed records), `HttpHealthProbe` | Third-party APIs are translated at the edge, so the domain never sees them and they can be swapped or mocked. |
-| **Decorator** | `RetryingImageBuilder` wraps an `ImageBuilder` and adds push retries | Adds behaviour without modifying or subclassing the Docker adapter, using the same interface. |
+| **Adapter** | `AppleContainerImageBuilder` and `AppleContainerRuntimeProvider` (the `container` command line → our ports), `DockerImageBuilder` and `DockerRuntimeProvider` (docker-java → the same ports), `JGitSourceCodeProvider` (JGit → `SourceCodeProvider`), `GitHubApiClient` (REST → typed records), `HttpHealthProbe` | Third-party APIs are translated at the edge, so the domain never sees them and they can be swapped or mocked. The engine swap is the real example: two adapter pairs, one set of ports. |
+| **Decorator** | `RetryingImageBuilder` wraps an `ImageBuilder` and adds push retries | Adds behaviour without modifying or subclassing either engine's adapter, using the same interface. |
 | **Facade** | `DeploymentService` (request, cancel, rollback over transitions, the source provider and queries). `BuildService` hides clone → detect → strategy → build → push. | Controllers and handlers call one simple method instead of coordinating five collaborators. |
 | **Proxy** | Spring wraps beans in proxies for `@Transactional` and `@Async` (`DeploymentTransitions`, `FailureInvestigator`) | Cross-cutting concerns (transactions, threading) without code in each method. |
 
@@ -527,7 +583,7 @@ classDiagram
 | Pattern | Where | Why this pattern |
 |---------|-------|------------------|
 | **State** | `DeploymentStatus` (transition table) + `Deployment.transitionTo()` | The lifecycle has strict legal moves. Centralising them makes illegal states impossible and testable (`DeploymentStatusTest` checks all 81 pairs). |
-| **Strategy** | `BuildStrategy`, `RolloutStrategy` (`BlueGreenRollout`), `DiagnosisEngine`, `NotificationChannel`, `RuntimeProvider` | Interchangeable algorithms behind one interface, chosen by type or configuration. |
+| **Strategy** | `BuildStrategy`, `RolloutStrategy` (`BlueGreenRollout`), `DiagnosisEngine`, `NotificationChannel`, `RuntimeProvider` and `ImageBuilder` (Apple container or Docker, chosen by `forge.engine`) | Interchangeable algorithms behind one interface, chosen by type or configuration. |
 | **Template Method** | `AbstractJobHandler.handle()` is `final`: decode → MDC → timer → `doHandle()`. `TemplateBuildStrategy.prepare()` is `final`: render → write. | A fixed skeleton with variable steps, so every job gets logging and metrics for free. |
 | **Chain of Responsibility** | `DetectorChain` (Dockerfile → Maven → Gradle → Node). Diagnosis: LLM engine → rule engine → 13 ordered rules, with a generic fallback last. | Try handlers in priority order until one answers. Adding a handler doesn't change the others. |
 | **Observer** | `DeploymentStatusChanged` → `DeploymentEventListeners` (audit, live stream, metrics), `DeploymentNotifier`, `FailureInvestigator`. `LogBroadcaster` → `Subscriber`s (open browser streams). | The deployment module announces changes without knowing who listens. Notification and the agent are fully decoupled. |
@@ -549,3 +605,4 @@ Repository (Spring Data), Aggregate Root plus domain events (`Deployment extends
 | Two deployments of one project | App check → `JobPostponedException`. DB partial unique index as the last line of defence. | `DeploymentTransitions.waitIfProjectBusy`, `ux_deployments_one_active` |
 | Concurrent writes to one browser stream | `synchronized` per `Subscriber`, `CopyOnWriteArrayList` registry | `LogBroadcaster` |
 | Log sequence numbers | Per-deployment `AtomicInteger` seeded from the DB | `JdbcLogStore.counter` |
+| Traefik polls the routing table every second while workers start and stop containers | `refresh()` is `synchronized`; the table is a `volatile` immutable map, read without locks and cached for up to 10 s | `AppleRoutingTable` |

@@ -14,7 +14,7 @@ The rules every change follows. Most of them are enforced by the build (`./mvnw 
 | Validate at the boundary, re-check in the domain | `@Valid` + Jakarta constraints on requests; `Slug`, `RepoRef`, `BuildSettings` reject bad values in their constructors |
 | Fail with domain exceptions | `NotFoundException`, `ValidationException`, `IllegalStateTransitionException`, `BuildFailedException`. All extend `ForgeException` and carry an `ErrorCode`. |
 | No business logic in controllers | Controller = validate → one service call → map the response |
-| `@Transactional` only on application services, and **never across network I/O** | Docker builds, Git clones and health probes run outside transactions. `DeploymentTransitions` holds the short transactional steps. |
+| `@Transactional` only on application services, and **never across network I/O** | Image builds, Git clones and health probes run outside transactions. `DeploymentTransitions` holds the short transactional steps. |
 | No magic numbers | Typed `@ConfigurationProperties` records: `BuildProperties`, `DeploymentProperties`, `JobsProperties`, `RuntimeProperties`, `AgentProperties` |
 | Logging: SLF4J with placeholders, **never secrets** | `CorrelationIdFilter` + `MdcScope` put `deploymentId`/`jobId` in every log line. `SecretRedactor` strips env-var values before logs reach the agent. |
 | Java 21 where it clarifies | Records, sealed types, pattern-matching `switch`, text blocks, **virtual threads** (`spring.threads.virtual.enabled`, `JobRunner`) |
@@ -28,15 +28,15 @@ The rules every change follows. Most of them are enforced by the build (`./mvnw 
 | `modulesOnlyTalkThroughEachOthersPublicApi` | **Spring Modulith**: a module may use only the root package (public API) of another module, never its `application`/`domain`/`infrastructure` internals. No cycles. |
 | `domainDoesNotDependOnWebOrAdapters` | **ArchUnit**: `..domain..` never imports `..api..`, `..infrastructure..`, Spring Web, docker-java or JGit. |
 | `controllersNeverUseRepositoriesDirectly` | `..api..` classes go through an application service. |
-| `onlyAdaptersTouchDockerAndGit` | docker-java and JGit are used only inside `infrastructure` adapters (and the shared Docker client config). |
+| `onlyAdaptersTouchDockerAndGit` | docker-java and JGit are used only inside `infrastructure` adapters (and the shared Docker client config). The Apple container adapters use no library at all: only `ContainerCli` (in `shared.container`) starts `container` processes. |
 | `documentModules` | Writes the module diagrams (PlantUML) into `target/spring-modulith-docs`. |
 
 ## 3. Testing strategy
 
 ```mermaid
 flowchart TB
-    e2e["End to end (manual, scripted)<br/>real Docker + Traefik: scripts/demo-push.sh"]
-    it["Integration<br/>@SpringBootTest + Testcontainers Postgres 16"]
+    e2e["End to end (manual, scripted)<br/>real Apple container + Traefik: scripts/demo-push.sh"]
+    it["Integration<br/>@SpringBootTest + real Postgres 16<br/>(local or Testcontainers)"]
     arch["Architecture<br/>Spring Modulith + ArchUnit"]
     unit["Unit (most tests)<br/>JUnit 5 + AssertJ + Mockito"]
     e2e --> it --> arch --> unit
@@ -48,23 +48,25 @@ flowchart TB
 | Unit | `ProjectDomainTest` | Slug, repo and build-setting validation |
 | Unit | `EncryptionServiceTest` | AES-GCM round trip, random IV, tamper detection |
 | Unit | `BuildChainTest`, `RetryingImageBuilderTest` | Detector chain picks the right build type; the decorator retries only transient failures |
-| Unit | `DiagnosisRulesTest`, `SecretRedactorTest` | Each of the 13 agent rules fires on its evidence (a Docker engine fault is never blamed on the code); secrets never reach the agent |
-| Unit | `BackoffTest`, `TraefikLabelsTest` | Exponential backoff with cap; routing and retry labels |
+| Unit | `DiagnosisRulesTest`, `SecretRedactorTest` | Each of the 13 agent rules fires on its evidence (a container-engine fault is never blamed on the code); secrets never reach the agent |
+| Unit | `BackoffTest`, `TraefikLabelsTest` | Exponential backoff with cap; routing and retry labels (Docker engine) |
+| Unit | `AppleRoutingTest` | Parses state, IP and labels from `container list` JSON; blue and green of one project share a route; stopped, foreign and address-less containers are not routed; the Traefik config has router, service, health check and retry; no running apps gives an empty config |
 | Unit | `SourceDomainTest` | Relinking GitHub replaces the account instead of adding one |
 | Integration | `AuthFlowIntegrationTest` | Register, login, refresh rotation, **refresh-token reuse detection**, logout |
 | Integration | `ProjectApiIntegrationTest` | CRUD, ownership (another user's project is 404), env-var masking, validation errors as ProblemDetail |
 | Integration | `JobQueueConcurrencyIntegrationTest` | Many threads claim concurrently with `SKIP LOCKED`: **each job goes to exactly one worker**; lease expiry, retry and DEAD |
-| Integration | `DeploymentPipelineIntegrationTest` | The whole pipeline through the real queue and DB (Docker/Git mocked at the port): LIVE, superseded, failed + insight, rollback, cancel, one-in-progress rule |
+| Integration | `DeploymentPipelineIntegrationTest` | The whole pipeline through the real queue and DB (container engine and Git mocked at the port): LIVE, superseded, failed + insight, rollback, cancel, one-in-progress rule |
 | Integration | `WebhookIntegrationTest` | Bad HMAC rejected, duplicate delivery ignored, push to the tracked branch deploys |
+| Integration | `RoutingIntegrationTest` | `GET /internal/routing` answers 401 without the routing token or with a wrong one, and 200 with the right one |
 | Architecture | `ArchitectureTest` | Section 2 above |
-| End to end | `scripts/demo-push.sh` on real Docker | Deploy, zero-downtime swap (4 swaps, 1,340 requests, 0 errors), broken deploy keeps the old version, rollback |
+| End to end | `scripts/demo-push.sh` on real Apple container (29 Oct) | Deploy, zero-downtime swap (402 requests, 0 errors), wrong-port and crash failures keep the old version with the right agent diagnosis, rollback in 4 s. Earlier on Docker (27 Oct): 4 swaps, 1,340 requests, 0 errors. |
 
-**Totals:** 104 tests (77 unit/architecture + 27 integration), all green.
+**Totals:** 110 tests (82 unit/architecture + 28 integration), all green.
 
 **Rules**
 - Test names describe behaviour: `eachJobIsClaimedByExactlyOneOfManyWorkers`, `unhealthyNewVersionFailsAndTheOldOneKeepsServing`, `wrongPasswordAndUnknownUserGetTheSameAnswer`.
 - Arrange / Act / Assert, one behaviour per test.
-- Integration tests use a **real Postgres** in a container, never H2, because `SKIP LOCKED`, partial unique indexes and `CHECK` constraints are Postgres features.
+- Integration tests use a **real Postgres**, never H2: the local PostgreSQL 16 when `FORGE_TEST_DB_URL` is set (e.g. `jdbc:postgresql://localhost:5432/forge_test` on a Mac without Docker), otherwise a Testcontainers Postgres (CI). This matters because `SKIP LOCKED`, partial unique indexes and `CHECK` constraints are Postgres features.
 - **Coverage gate (JaCoCo):** at least 80 % line coverage on every `com.forge.*.domain` package. `verify` fails below that.
 
 ## 4. Git workflow
@@ -97,9 +99,9 @@ Test reports and the coverage report are uploaded as build artifacts.
 
 | Kind | Where |
 |------|-------|
-| Non-secret defaults | `application.yml` (`forge.*` sections) |
+| Non-secret defaults | `application.yml` (`forge.*` sections), including `forge.engine` (`apple` by default, or `docker`) |
 | Test overrides | `src/test/resources/application-test.yml` (random throwaway keys, job runner off) |
-| Secrets: JWT key, AES master key, GitHub client secret, webhook secret, `ANTHROPIC_API_KEY` | **Environment only.** `.env` locally (git-ignored); `.env.example` documents every variable. |
+| Secrets: JWT key, AES master key, GitHub client secret, webhook secret, `ANTHROPIC_API_KEY`, routing token (`FORGE_ROUTING_TOKEN`) | **Environment only.** `.env` locally (git-ignored); `.env.example` documents the variables. `scripts/infra.sh up` generates `FORGE_ROUTING_TOKEN` into `.env` on first run. |
 | Typed access | `@ConfigurationProperties` records with `@Validated`, e.g. `CryptoProperties` rejects a key that isn't 32 bytes at startup. |
 
 ## 7. API design rules

@@ -19,8 +19,8 @@ flowchart LR
 |-------|------------|----------------|
 | Controller (`api`) | Parse and validate input, call **one** service method, map to a response record | Business rules, repositories (checked by ArchitectureTest), try/catch |
 | Service (`application`) | Use cases, transactions, ownership, calling other modules' public APIs | HTTP types (`HttpServletRequest`), SQL |
-| Domain (`domain`) | Invariants, state transitions, value validation | Spring Web, Docker, JGit (checked by ArchitectureTest) |
-| Repository / adapter (`infrastructure`) | SQL, Docker, Git, HTTP clients | Business decisions |
+| Domain (`domain`) | Invariants, state transitions, value validation | Spring Web, docker-java, JGit (checked by ArchitectureTest), the container engine |
+| Repository / adapter (`infrastructure`) | SQL, the container engine (Apple `container` or Docker), Git, HTTP clients | Business decisions |
 
 ## 2. Conventions
 
@@ -105,8 +105,8 @@ Validation errors add `"errors": [{"field": "password", "message": "must be 10 t
   "id": "7f3c…", "projectId": "2b1e…",
   "commitSha": "3f2a9c1b0d4e5f60718293a4b5c6d7e8f9012345", "commitMessage": "feat: say hello",
   "trigger": "WEBHOOK", "status": "FAILED", "failureReason": "UNHEALTHY",
-  "failureDetail": "process exited (ConnectException); container exited with code 1",
-  "imageRef": "localhost:5001/forge/hello-node:3f2a9c1b0d4e", "rollbackOfId": null,
+  "failureDetail": "process exited (ConnectException); container process exited (see the app's last log lines)",
+  "imageRef": "forge/hello-node:3f2a9c1b0d4e", "rollbackOfId": null,
   "createdAt": "…", "startedAt": "…", "finishedAt": "…",
   "timeline": [ {"from": null, "to": "QUEUED", "message": "Deployment queued", "at": "…"}, … ]
 }
@@ -133,6 +133,35 @@ data: {"status":"HEALTH_CHECKING","failureReason":null}
 
 event: done
 data: {"status":"LIVE"}
+```
+
+### Infrastructure (`runtime.api.RoutingController`)
+
+This endpoint is for Traefik, not for people. It is outside `/api/v1`, takes no user JWT, and is protected by a shared token instead (`forge.runtime.routing-token`, from `FORGE_ROUTING_TOKEN`; `scripts/infra.sh up` generates it and passes it to Traefik).
+
+| Method & path | Request | Response |
+|---------------|---------|----------|
+| `GET /internal/routing` | Header `X-Forge-Routing-Token: <token>` | `200` Traefik dynamic configuration (JSON) · `401` (empty body) if the header is missing or wrong · `404` on the Docker engine, where Traefik reads Docker labels instead |
+
+Traefik's HTTP provider polls it every second. The table is built by `AppleRoutingTable` from the labels on the running app containers: one router, one service and one retry middleware per project, with every running instance (blue and green during a swap) as a server on its VM IP. With no running apps the body is `{}`.
+
+```json
+{
+  "http": {
+    "routers": {
+      "hello-node": { "rule": "Host(`hello-node.localhost`)", "entryPoints": ["web"],
+                      "service": "hello-node", "middlewares": ["hello-node-retry"] }
+    },
+    "services": {
+      "hello-node": { "loadBalancer": {
+        "healthCheck": { "path": "/health", "interval": "2s", "timeout": "2s" },
+        "servers": [ { "url": "http://192.168.64.5:8080" } ] } }
+    },
+    "middlewares": {
+      "hello-node-retry": { "retry": { "attempts": 5, "initialInterval": "200ms" } }
+    }
+  }
+}
 ```
 
 ## 4. Internal interfaces between modules (Java signatures)
@@ -199,7 +228,7 @@ public record DeploymentStatusChanged(UUID deploymentId, UUID projectId, Deploym
 | 202 | Accepted for asynchronous processing (deploy, cancel, rollback, webhook) |
 | 302 | OAuth callback redirect |
 | 400 | Validation failed (shape or domain rule) |
-| 401 | Missing or invalid token, bad credentials, bad webhook signature |
+| 401 | Missing or invalid token, bad credentials, bad webhook signature, missing or wrong routing token |
 | 404 | Not found **or not yours** |
 | 409 | Conflict: email or slug taken, not cancellable, illegal transition, concurrent update |
 | 422 | Semantically impossible: repo unreachable, nothing to roll back to, GitHub not connected |

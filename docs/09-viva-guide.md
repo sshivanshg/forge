@@ -4,7 +4,7 @@ How to present Forge: the pitch, the end-to-end story, where each rubric item li
 
 ## 1. The 60-second pitch
 
-> "Forge is a small Render or Railway. You point it at a Git repository and click Deploy, or just `git push`. Forge clones that exact commit, detects whether it is a Spring Boot, Node or Dockerfile project, builds a Docker image, starts it as a container, health-checks it, and only then moves traffic to it. A bad deploy never takes the site down: the old version keeps serving, and an **agent** reads the logs and tells you *why* it failed and how to fix it. It's Java 21 and Spring Boot, built as a **modular monolith** of 11 modules whose boundaries are enforced by tests. Slow work runs on a **Postgres job queue**, so the API answers in milliseconds and a crashed worker never loses a deployment."
+> "Forge is a small Render or Railway. You point it at a Git repository and click Deploy, or just `git push`. Forge clones that exact commit, detects whether it is a Spring Boot, Node or Dockerfile project, builds a container image, starts it in its own lightweight VM with Apple's container runtime, health-checks it, and only then moves traffic to it. A bad deploy never takes the site down: the old version keeps serving, and an **agent** reads the logs and tells you *why* it failed and how to fix it. It's Java 21 and Spring Boot, built as a **modular monolith** of 11 modules whose boundaries are enforced by tests. Slow work runs on a **Postgres job queue**, so the API answers in milliseconds and a crashed worker never loses a deployment."
 
 ## 2. End to end in 12 steps
 
@@ -17,11 +17,11 @@ Use the sequence diagrams in [04 §1](04-interactions.md#1-sequence-deploy-a-com
 5. **Return immediately:** `202 Accepted` with the deployment. The dashboard opens an SSE stream for live logs.
 6. **Claim.** A `JobRunner` virtual thread claims the job with `FOR UPDATE SKIP LOCKED`, takes a lease and heartbeats it.
 7. **Clone.** `JGitSourceCodeProvider` shallow-clones that SHA into a temporary folder that is always deleted.
-8. **Detect and build.** `DetectorChain` picks the build type (Dockerfile → Maven → Gradle → Node). `BuildStrategyFactory` gives the strategy that writes a Dockerfile if needed. `DockerImageBuilder` builds and pushes the image to the local registry; every log line goes through `LogSink` to the DB and the live stream.
+8. **Detect and build.** `DetectorChain` picks the build type (Dockerfile → Maven → Gradle → Node). `BuildStrategyFactory` gives the strategy that writes a Dockerfile if needed. `AppleContainerImageBuilder` runs `container build`; the image stays in the engine's local store, so there is no registry and no push. Every log line goes through `LogSink` to the DB and the live stream.
 9. **Queue the deploy.** Status becomes `DEPLOYING` and a DEPLOY job is enqueued.
-10. **Start green.** `BlueGreenRollout` asks `RuntimeProvider` for a new container with decrypted env vars, memory/CPU/process limits and Traefik routing labels.
-11. **Verify.** `HttpHealthProbe` polls the health path every 2 s for up to 90 s, and fails fast if the container exits. Status is `HEALTH_CHECKING`.
-12. **Switch or keep the old one.** Healthy → status `LIVE`, the old container is drained and stopped, the old deployment becomes `SUPERSEDED`. Unhealthy → the new container is removed, status `FAILED(UNHEALTHY)`, the old one never stopped serving, and after commit the agent writes an insight. Every transition is checked by the state machine and stored in `deployment_events`.
+10. **Start green.** `BlueGreenRollout` asks `RuntimeProvider` for a new container with decrypted env vars, memory and CPU limits and routing labels. `AppleContainerRuntimeProvider` runs it in its own VM, reads the VM's IP (192.168.64.x), and refreshes the routing table.
+11. **Verify.** `HttpHealthProbe` polls the health path on the VM's IP every 2 s for up to 90 s, and fails fast if the container stops. Status is `HEALTH_CHECKING`. Meanwhile Traefik polls `GET /internal/routing` every second and adds green next to blue, behind its own health check.
+12. **Switch or keep the old one.** Healthy → status `LIVE`, the old container is drained and stopped (and drops out of the routing table), the old deployment becomes `SUPERSEDED`. Unhealthy → the new container is removed, status `FAILED(UNHEALTHY)`, the old one never stopped serving, and after commit the agent writes an insight. Every transition is checked by the state machine and stored in `deployment_events`.
 
 ## 3. Where each rubric item is
 
@@ -30,13 +30,13 @@ Use the sequence diagrams in [04 §1](04-interactions.md#1-sequence-deploy-a-com
 | 1 | Requirements, actors, use cases | [01](01-requirements.md) | — |
 | 2 | Class diagram, relationships, multiplicity | [03 §1–4](03-class-design.md) | `Deployment`, `Project`, `EnvironmentVariable` |
 | 3 | OOP | [03 §5](03-class-design.md#5-object-oriented-design) | `Deployment` (no setters), `AbstractJobHandler` |
-| 4 | SOLID | [03 §6](03-class-design.md#6-solid--where-each-principle-is-applied) | `RetryingImageBuilder` (O), `LogSink`/`LogReader` (I), `RuntimeProvider` (D) |
+| 4 | SOLID | [03 §6](03-class-design.md#6-solid--where-each-principle-is-applied) | `RetryingImageBuilder` (O), `LogSink`/`LogReader` (I), `RuntimeProvider` (D, L: the engine swap) |
 | 5 | Design patterns | [03 §7](03-class-design.md#7-design-patterns-with-justification) | `DetectorChain`, `ContainerSpec.builder()`, `DeploymentStatus` |
 | 6 | Sequence and activity diagrams | [04](04-interactions.md) | — |
 | 7 | API and layer separation | [05](05-api-spec.md), [02 §3](02-architecture.md#3-modules-modular-monolith) | `DeploymentController` → `DeploymentService` |
 | 8 | DB schema mapped from classes | [06](06-database-schema.md) | `db/migration/V1`–`V7` |
 | 9 | Errors, validation, edge cases, concurrency | [07](07-error-handling.md), [03 §8](03-class-design.md#8-concurrency-design) | `GlobalExceptionHandler`, `PostgresJobQueue.claim` |
-| 10 | Working implementation | Live demo (section 6) | 104 tests green, `ArchitectureTest` |
+| 10 | Working implementation | Live demo (section 6) | 110 tests green, `ArchitectureTest` |
 
 ## 4. The modules in two sentences each
 
@@ -47,15 +47,15 @@ The presenter should be able to say this for each module, then open one class.
 | `identity` | Registration, login, JWT access tokens (15 min) and rotating refresh tokens. Reusing an old refresh token is treated as theft and signs the user out everywhere. | `AuthService` |
 | `project` | Projects, their build settings, and environment variables encrypted with AES-256-GCM and masked in every response. | `EnvironmentService` |
 | `source` | Talks to Git: GitHub OAuth, listing repos, cloning a commit with JGit, and verifying push webhooks. | `WebhookService` |
-| `build` | Turns source into an image: a chain of detectors picks the stack, a strategy writes the Dockerfile, docker-java builds and pushes. | `DefaultBuildService` |
-| `runtime` | Starts and stops app containers with resource limits, an isolated network and Traefik routing labels. | `DockerRuntimeProvider` |
+| `build` | Turns source into an image: a chain of detectors picks the stack, a strategy writes the Dockerfile, Apple `container build` builds it (docker-java on the Docker engine). | `DefaultBuildService`, `AppleContainerImageBuilder` |
+| `runtime` | Starts and stops app containers, each in its own lightweight VM with resource limits, and serves Traefik the routing table built from their labels (`GET /internal/routing`). `DockerRuntimeProvider` is the alternative for `forge.engine=docker`. | `AppleContainerRuntimeProvider`, `AppleRoutingTable` |
 | `health` | Polls the app's health URL until it answers 2xx/3xx, times out, or the container dies. | `HttpHealthProbe` |
 | `logs` | Stores build and runtime log lines with sequence numbers and streams them live over SSE, resuming from `Last-Event-ID`. | `LogBroadcaster` |
 | `jobs` | A durable job queue on Postgres: `SKIP LOCKED` claiming, leases, heartbeat, reaper, exponential backoff, dead-lettering. | `PostgresJobQueue`, `JobRunner` |
 | `deployment` | The heart: the state machine, the build and deploy job handlers, blue-green rollout, rollback and cancel. | `Deployment`, `BlueGreenRollout` |
 | `notification` | Listens for status changes and emails the owner when a deploy goes live or fails. | `DeploymentNotifier` |
-| `agent` | When a deploy fails, collects evidence (logs, exit code, config), redacts secrets, and diagnoses: Claude if a key is set, otherwise 13 rules. | `FailureInvestigator`, `DiagnosisRules` |
-| `shared` | Error model (`ErrorCode`, ProblemDetail), encryption, correlation ids, the Docker client. | `GlobalExceptionHandler` |
+| `agent` | When a deploy fails, collects evidence (logs, failure detail such as an exit code where the engine reports one, config), redacts secrets, and diagnoses: Claude if a key is set, otherwise 13 rules. | `FailureInvestigator`, `DiagnosisRules` |
+| `shared` | Error model (`ErrorCode`, ProblemDetail), encryption, correlation ids, `ContainerCli` (and the Docker client for the Docker engine). | `GlobalExceptionHandler` |
 
 ## 5. Likely questions
 
@@ -81,26 +81,31 @@ In two layers. The deploy handler checks first and postpones the job (`JobPostpo
 Both, where each fits. Optimistic (`@Version`) on `Deployment`, because conflicts are rare and we'd rather detect them and retry. Pessimistic row locks with `SKIP LOCKED` for claiming jobs, where contention is normal.
 
 **How is it zero downtime?**
-Blue-green: the new container must pass its health check before it gets traffic. During the swap Traefik load-balances across both, its retry middleware moves a failed connection to the other one, and `tini` as PID 1 passes SIGTERM to the app so it finishes in-flight requests. Measured: 4 swaps under a request loop, 1,340 requests, 0 errors.
+Blue-green: the new container must pass its health check before it gets traffic. During the swap the routing table lists both, Traefik load-balances across them, its retry middleware moves a failed connection to the other one, and an init process (`--init`) passes SIGTERM to the app so it finishes in-flight requests. Measured on Apple container: 402 requests under a request loop, 0 errors (earlier on Docker: 4 swaps, 1,340 requests, 0 errors).
 
 **How are secrets stored?**
 AES-256-GCM with a random 12-byte IV per value; GCM also detects tampering. The master key comes only from the environment. Values are masked in the API, decrypted only when the container starts, and redacted before logs reach the agent. Passwords are hashed with BCrypt (cost 12), not encrypted, because we never need them back.
 
 **What makes it agentic?**
-On failure the agent *observes* (the last build and runtime log lines, the failure reason and detail such as exit code or out-of-memory, build type, configured port, health path, commit), *reasons* (Claude, or 13 deterministic rules when there is no API key or the call fails), and *reports* a category, summary, suggested fix and confidence. It is a listener on `DeploymentStatusChanged`, so the pipeline doesn't know it exists.
+On failure the agent *observes* (the last build and runtime log lines, the failure reason and detail such as a crash or out-of-memory (Apple container reports no exit codes, so the logs carry the reason), build type, configured port, health path, commit), *reasons* (Claude, or 13 deterministic rules when there is no API key or the call fails), and *reports* a category, summary, suggested fix and confidence. It is a listener on `DeploymentStatusChanged`, so the pipeline doesn't know it exists.
 
 **Isn't running users' code dangerous?**
-Yes. Generated Dockerfiles run the app as a non-root user, and every container gets memory, CPU and process limits, `no-new-privileges`, on a network that can't reach our database, and builds have a 10-minute timeout. Real platforms use microVMs (Firecracker); that's listed as future work.
+Yes. Generated Dockerfiles run the app as a non-root user. On Apple container every app runs in its own lightweight VM, so apps don't share a kernel, with memory and CPU limits and all Linux capabilities dropped; builds have a 10-minute timeout. On the Docker engine (Linux) containers share the host kernel, so they get memory, CPU and process limits, `no-new-privileges` and a network that can't reach our database; microVMs (Firecracker) there are future work.
+
+**Why Apple container instead of Docker?**
+Three reasons. Each app runs in its own lightweight VM, which isolates apps more strongly than containers sharing one kernel. It is native on the Mac we demo on, with no Docker Desktop (which had crashed under memory pressure and corrupted its image store, see [D-004](DECISIONS.md)). And the swap proved the design: the pipeline depends only on the `ImageBuilder` and `RuntimeProvider` interfaces, so we added two adapters (`AppleContainerImageBuilder`, `AppleContainerRuntimeProvider`) and changed the wiring, with **zero changes** to the `deployment` module. That is Dependency Inversion and Liskov Substitution in practice. The one new piece is routing: Apple container has no Docker labels for Traefik to read, so Forge serves Traefik a routing table at `/internal/routing`. Docker stays as the alternative adapter (`forge.engine=docker`) for Linux and CI. Trade-offs: macOS 26+ on Apple silicon only, no exit codes, at least 200 MiB per container.
 
 **How would it scale?**
-The API is stateless, so add instances behind a load balancer; `SKIP LOCKED` already lets many workers share one queue. Next: move SSE fan-out to Redis, extract the workers, move logs to object storage, and swap `DockerRuntimeProvider` for a Kubernetes one. All are listed in [10](10-roadmap.md#future-work-presented-not-built).
+The API is stateless, so add instances behind a load balancer; `SKIP LOCKED` already lets many workers share one queue. Next: move SSE fan-out to Redis, extract the workers, move logs to object storage, and add a Kubernetes `RuntimeProvider` next to the Apple container and Docker ones. All are listed in [10](10-roadmap.md#future-work-presented-not-built).
 
 ## 6. Demo script (about 8 minutes)
 
 **Before the session** (in this order):
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d
+container system start
+brew services start postgresql@16
+scripts/infra.sh up
 ```
 
 ```bash
@@ -128,7 +133,7 @@ while true; do curl -s -o /dev/null -w "%{http_code}\n" http://hello-node.localh
 3. **A broken push** (2 min): run `scripts/demo-push.sh break-port`. The deploy fails `UNHEALTHY`, the site still serves v2, and the agent card says the app listens on the wrong port, with the fix.
 4. **A crash** (1 min): run `scripts/demo-push.sh crash`. It fails within seconds, and the agent reports a missing `DATABASE_URL`.
 5. **Rollback** (30 s): click Roll back on the v2 deployment. It goes live without rebuilding.
-6. **Proof** (1 min): show `ArchitectureTest` and the test run (104 green), and the `jobs` and `deployment_events` tables.
+6. **Proof** (1 min): show `ArchitectureTest` and the test run (110 green), and the `jobs` and `deployment_events` tables.
 7. **Close** (30 s): future work (Kafka, Kubernetes, AWS, autoscaling).
 
 Restore the app afterwards with `scripts/demo-push.sh fix`. Always have the **recorded backup video** of this script ready.
