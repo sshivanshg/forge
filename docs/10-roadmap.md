@@ -10,7 +10,7 @@ Scope is frozen ([DECISIONS D-003](DECISIONS.md)): Milestone 1 plus the agent. E
 | 4 | Wed 29 Oct | Real GitHub path: OAuth app, public sample repos, a webhook via smee.io. CI on GitHub Actions. | ✅ CI workflow · ⏳ OAuth app and public repos |
 | 4 | Wed 29 Oct | Engine moved from Docker to **Apple container** ([D-004](DECISIONS.md)): new build and runtime adapters, routing table for Traefik, no `deployment` changes. | ✅ verified on hello-node: deploy, zero-downtime swap (402 requests, 0 errors), wrong-port and crash failures with the correct agent diagnosis, rollback in 4 s · ✅ hello-spring live on Apple container in about 1.5 min (Maven build in the builder VM, env value served) · 110 tests green |
 | 5 | Thu 30 Oct | Polish: error states, empty states, README quick-start, screenshots in docs | ✅ README, docs 08–09 · ⏳ screenshots |
-| 6 | Fri 31 Oct | Demo rehearsal with the presenter, record the backup video, freeze `v1.0.0` | ⏳ |
+| 6 | Fri 31 Oct | Deploy Forge to a public server ([11](11-deployment.md)), demo rehearsal with the presenter, record the backup video, freeze `v1.0.0` | ✅ deployment guide and production files · ⏳ server, rehearsal, video, tag |
 | 7 | Sat 1 Nov – eval | Presenter learns the modules ([09](09-viva-guide.md)). Q&A drills. Buffer for fixes. | ⏳ |
 
 ## Definition of done for the evaluation

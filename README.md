@@ -84,6 +84,7 @@ Without `FORGE_TEST_DB_URL` (for example in CI), the integration tests start Pos
 | 08 | [Engineering standards](docs/08-engineering-standards.md) | Code style, architecture tests, testing, CI |
 | 09 | [Viva and demo guide](docs/09-viva-guide.md) | Pitch, module walkthrough, Q&A, demo script |
 | 10 | [Build plan](docs/10-roadmap.md) | Day plan to the evaluation, future work |
+| 11 | [Deployment](docs/11-deployment.md) | Run Forge on one public Linux server (Docker engine), step by step |
 | — | [Decision log](docs/DECISIONS.md) | Scope decisions, newest first |
 
 ## Stack

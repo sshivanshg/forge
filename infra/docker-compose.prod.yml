@@ -1,0 +1,76 @@
+# Forge on a single Linux server (Ubuntu 24.04 + Docker). See docs/11-deployment.md.
+#
+#   docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --build
+#
+# forge-server runs on the host as a systemd service (deploy/forge-server.service), because it
+# health-checks each new app version on 127.0.0.1:<published port> before Traefik routes to it.
+#
+# Only three ports face the internet: 80 (user apps through Traefik), 3000 (dashboard) and
+# 8080 (forge-server API, outside Docker). Everything else is bound to 127.0.0.1, because
+# ports Docker publishes skip the ufw firewall.
+name: forge
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: forge
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: ${FORGE_DB_PASSWORD:?set FORGE_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - forge-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge -d forge"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Routes http://<project-slug>.<FORGE_APPS_DOMAIN> to user apps, using the labels Forge sets.
+  traefik:
+    image: traefik:v3.6
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=forge-apps
+      - --entrypoints.web.address=:80
+      - --serversTransport.forwardingTimeouts.dialTimeout=1s
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --log.level=INFO
+    ports:
+      - "80:80"
+      - "127.0.0.1:8090:8080" # Traefik dashboard: reach it through an SSH tunnel only
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - default
+      - forge-apps
+
+  # Deployment emails. Read them through an SSH tunnel: ssh -L 8025:127.0.0.1:8025 forge@<ip>
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+  dashboard:
+    build:
+      context: ../forge-dashboard
+      args:
+        # Inlined into the browser bundle at build time: rebuild after changing it
+        NEXT_PUBLIC_API_URL: ${FORGE_PUBLIC_API_URL:?set FORGE_PUBLIC_API_URL in .env}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+networks:
+  forge-apps:
+    name: forge-apps
+
+volumes:
+  forge-pg:
