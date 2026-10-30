@@ -1,0 +1,28 @@
+# Test profile: fixed, throwaway secrets (never used outside tests) and no background workers,
+# so tests drive the job pipeline deterministically.
+forge:
+  runtime:
+    routing-token: test-routing-token
+  crypto:
+    encryption-key: 9QIsV2zpg1heKNMOI6zOOR3GTXOgypkgdEliLL5hMy0=
+  identity:
+    jwt-secret: JYgCobxHXB8Kg/3dBAPBxuvENlmtMXwDpkbONRjsw15zR7fJS4WYdzqY1mJqPRJN
+  github:
+    webhook-secret: test-webhook-secret
+    client-id: ""
+    client-secret: ""
+  jobs:
+    enabled: false
+  notifications:
+    enabled: false
+  agent:
+    anthropic-api-key: ""
+  deploy:
+    drain-delay: 0s
+spring:
+  main:
+    banner-mode: off
+logging:
+  level:
+    root: WARN
+    com.forge: INFO

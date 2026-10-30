@@ -1,0 +1,21 @@
+# systemd unit for the Forge control plane. Install: see docs/11-deployment.md, step 6.
+[Unit]
+Description=Forge control plane (forge-server)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+User=forge
+Group=forge
+WorkingDirectory=/opt/forge
+EnvironmentFile=/opt/forge/.env
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -jar /opt/forge/forge-server.jar
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+# Graceful shutdown lets in-flight HTTP requests and job leases finish
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

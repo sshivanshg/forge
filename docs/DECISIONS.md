@@ -4,6 +4,45 @@ Scope decisions, newest first. **When a decision here conflicts with another doc
 
 ---
 
+## D-004 — User apps run on Apple container, not Docker (2026-10-29)
+
+**Context:** Docker Desktop was removed from the development Mac (it crashed under memory pressure and corrupted its image store), and we were asked to use Apple's own container runtime instead.
+
+**Decision:** the default engine is **Apple `container`** (`forge.engine=apple`). Each app runs in its own lightweight Linux VM. The Docker adapters stay behind `forge.engine=docker` for Linux machines and CI.
+
+**What changed, and what didn't:**
+| Concern | Docker (before) | Apple container (now) |
+|---------|-----------------|-----------------------|
+| Build | `DockerImageBuilder` (docker-java) | `AppleContainerImageBuilder` (`container build`) |
+| Run | `DockerRuntimeProvider` | `AppleContainerRuntimeProvider` (`container run`) |
+| Image store | local registry on :5001, push after build | the engine's local store; no registry, no push |
+| Routing | Traefik reads Docker labels | Traefik polls Forge's routing table (`GET /internal/routing`), built from container labels |
+| Health checks | published port on 127.0.0.1 | the app VM's own IP (192.168.64.x) |
+| Postgres | container on :5433 | local PostgreSQL 16 on :5432 |
+| Pipeline, state machine, jobs, agent | — | **unchanged** |
+
+**Why it matters for the design:** the pipeline depends only on the `ImageBuilder` and `RuntimeProvider` interfaces, so swapping the engine meant adding adapters and changing wiring, with no edits to the deployment module. This is Dependency Inversion and Liskov Substitution doing their job.
+
+**Trade-offs:** Apple container is macOS-only (Apple silicon, macOS 26+), reports no exit codes (the agent reads logs instead), and needs at least 200 MiB per container. In exchange, apps are isolated by a VM rather than a shared kernel.
+
+---
+
+## D-003 — Scope frozen for the November evaluation (2026-10-26)
+
+**Context:** the final evaluation moved to the first week of November and is assessed on the 10 LLD criteria (requirements, class diagram, OOP, SOLID, patterns, sequence/activity diagrams, API design, DB schema, error handling, working implementation that matches the design exactly).
+
+**Decision:** build and present **Milestone 1 plus the agent** only. Kafka, Redis, AWS, autoscaling and Kubernetes become "future work" in [02 §8](02-architecture.md#8-how-it-would-scale-future-work-not-built). The docs were restructured to follow the rubric (01 requirements … 07 error handling) and rewritten to describe exactly what the code does.
+
+**Technical choices made while building:**
+- **Spring Boot 3.5.16** (latest 3.x, matches the locked scope). start.spring.io now only offers 4.x.
+- **Two jobs per deployment** (BUILD, then DEPLOY) instead of one, so rollbacks skip the build and a deploy retry doesn't rebuild.
+- `runtime_instances` is owned by the **deployment** module. `runtime` is a stateless adapter over Docker.
+- **The agent is rules first, LLM optional** (`ANTHROPIC_API_KEY`), so the demo works offline and deterministically.
+- **Offline demo mode:** `FORGE_GIT_BASE_URL=file://…` + `scripts/demo-repos.sh` / `scripts/demo-push.sh` (signed webhooks), so the demo doesn't depend on venue Wi-Fi or GitHub.
+- Team of 2: Shivansh builds; the teammate presents. The code is written to be explained module by module ([09](09-viva-guide.md)).
+
+---
+
 ## D-002 — Kubernetes is dropped (2026-10-11)
 
 **Decision:** Forge will **not** use Kubernetes. The runtime stays **Docker + Traefik** for the whole project, on a laptop locally and on AWS EC2 for the final deployment.

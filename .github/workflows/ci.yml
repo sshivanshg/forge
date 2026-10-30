@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: forge-server (format, tests, architecture, coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      # verify = spotless:check + unit + Testcontainers integration + ArchUnit/Modulith + JaCoCo gate.
+      # Tests tagged "docker" (real image builds) are excluded by the surefire config.
+      - run: ./mvnw -B -ntp verify
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            forge-server/target/surefire-reports
+            forge-server/target/site/jacoco
+          if-no-files-found: ignore
+
+  dashboard:
+    name: forge-dashboard (lint, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: forge-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: forge-dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
