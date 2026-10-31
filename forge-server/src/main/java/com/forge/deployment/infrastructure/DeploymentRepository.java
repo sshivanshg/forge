@@ -18,12 +18,16 @@ public interface DeploymentRepository extends JpaRepository<Deployment, UUID> {
   @Query("select d from Deployment d where d.projectId = :projectId and d.status in :statuses")
   List<Deployment> findByProjectAndStatusIn(UUID projectId, Collection<DeploymentStatus> statuses);
 
-  /** Is another deployment of this project currently building, deploying or health-checking? */
+  /**
+   * Is another deployment of this project currently building, deploying, health-checking or in
+   * canary?
+   */
   @Query(
       "select count(d) > 0 from Deployment d where d.projectId = :projectId and d.id <> :excludeId"
           + " and d.status in (com.forge.deployment.DeploymentStatus.BUILDING,"
           + " com.forge.deployment.DeploymentStatus.DEPLOYING,"
-          + " com.forge.deployment.DeploymentStatus.HEALTH_CHECKING)")
+          + " com.forge.deployment.DeploymentStatus.HEALTH_CHECKING,"
+          + " com.forge.deployment.DeploymentStatus.CANARY)")
   boolean anotherInProgress(UUID projectId, UUID excludeId);
 
   @Query("select d from Deployment d where d.status = com.forge.deployment.DeploymentStatus.LIVE")

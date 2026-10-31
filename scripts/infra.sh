@@ -39,10 +39,13 @@ up() {
   down >/dev/null 2>&1 || true
   local gateway; gateway="$(host_ip)"
   container run --detach --name forge-traefik \
-    --publish 80:80 --publish 127.0.0.1:8090:8080 \
+    --publish 80:80 --publish 127.0.0.1:8090:8080 --publish 127.0.0.1:8082:8082 \
     --memory 256M --cpus 1 \
     "$TRAEFIK_IMAGE" \
     --entrypoints.web.address=:80 \
+    --entrypoints.metrics.address=:8082 \
+    --metrics.prometheus=true --metrics.prometheus.entryPoint=metrics \
+    --metrics.prometheus.addServicesLabels=true \
     --providers.http.endpoint="http://$gateway:8080/internal/routing" \
     --providers.http.pollInterval=1s \
     --providers.http.headers.X-Forge-Routing-Token="$(token)" \
@@ -54,6 +57,7 @@ up() {
     --memory 256M --cpus 1 \
     "$MAILPIT_IMAGE" >/dev/null
   echo "Traefik:  http://<project-slug>.localhost  (dashboard http://localhost:8090)"
+  echo "Metrics:  http://localhost:8082/metrics  (read by canary rollouts)"
   echo "Mailpit:  http://localhost:8025"
   echo "Routing:  Traefik polls http://$gateway:8080/internal/routing"
 }

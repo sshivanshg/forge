@@ -34,9 +34,9 @@ Use the sequence diagrams in [04 §1](04-interactions.md#1-sequence-deploy-a-com
 | 5 | Design patterns | [03 §7](03-class-design.md#7-design-patterns-with-justification) | `DetectorChain`, `ContainerSpec.builder()`, `DeploymentStatus` |
 | 6 | Sequence and activity diagrams | [04](04-interactions.md) | — |
 | 7 | API and layer separation | [05](05-api-spec.md), [02 §3](02-architecture.md#3-modules-modular-monolith) | `DeploymentController` → `DeploymentService` |
-| 8 | DB schema mapped from classes | [06](06-database-schema.md) | `db/migration/V1`–`V8` |
+| 8 | DB schema mapped from classes | [06](06-database-schema.md) | `db/migration/V1`–`V9` |
 | 9 | Errors, validation, edge cases, concurrency | [07](07-error-handling.md), [03 §8](03-class-design.md#8-concurrency-design) | `GlobalExceptionHandler`, `PostgresJobQueue.claim` |
-| 10 | Working implementation | Live demo (section 6) | 114 tests green, `ArchitectureTest` |
+| 10 | Working implementation | Live demo (section 6) | 131 tests green, `ArchitectureTest` |
 
 ## 4. The modules in two sentences each
 
@@ -98,6 +98,15 @@ Three reasons. Each app runs in its own lightweight VM, which isolates apps more
 **What happens if a live app's container dies or the machine reboots?**
 Forge heals it. `LiveInstanceWatcher` checks every 30 s that each LIVE deployment's container still runs; if one is gone it queues a `RECOVERY` deployment of the **same image**, which goes through the normal blue-green rollout and health check. Measured: a deleted container was serving again in 12 s, with no rebuild. It recovers each live deployment at most once (a broken image can't loop), and an engine error never counts as "gone". Recovery reuses the rollback path (`Deployment.recoveryOf` next to `rollbackTo`), so it needed no new pipeline code ([D-005](DECISIONS.md)).
 
+**A release passes its health check but breaks real pages. What happens?**
+With the project's rollout set to **Canary**, the new version only gets 20% of the traffic, then 50%, 15 s each. Traefik counts requests, 5xx responses and latency for each version separately (each version is its own service under a weighted one), and `CanaryAnalysis` compares the two over the same window, so an outage that hits both versions isn't blamed on the new one. If the new version is clearly worse, Forge sets its weight to 0 first (visitors are back on the old version within a second), removes it and fails the deployment with `CANARY_REGRESSION`; the agent explains it. Measured: a release with 30% failing pages was rolled back at 20%, and visitors saw 3 errors in 574 requests instead of 30% ([D-006](DECISIONS.md)).
+
+**Where are the design patterns in that?**
+`CanaryRollout` is a second `RolloutStrategy` next to `BlueGreenRollout` (Strategy); `RolloutSelector` picks one per deployment (rollbacks and first deploys always switch at once). Shared steps are in `RolloutSteps` (composition). `TrafficSplitter` and `TrafficMetrics` are ports in `runtime`, implemented by `AppleRoutingTable` and `TraefikMetrics` (adapters), so the deployment module never knows Traefik exists. The state machine got one state, `CANARY`.
+
+**Replicas?**
+1 to 3 per project. Each deployment starts one container per replica and all must be healthy; Traefik balances across them. If one dies, self-healing rolls out a fresh set while the others keep serving: 646 requests, 0 errors.
+
 **Why does a wrong port fail in seconds, not after the 90 s timeout?**
 During the health check `ListeningPortWatch` reads the new container's output. If the app announces only ports other than the project's (e.g. "listening on port 3000" when Forge routes to 8080), waiting can't help, so the check ends at once with that reason. The agent still produces its `PORT_MISMATCH` diagnosis. Wrong-port failures went from 102 s to 15 s.
 
@@ -139,7 +148,8 @@ while true; do curl -s -o /dev/null -w "%{http_code}\n" http://hello-node.localh
 3. **A broken push** (2 min): run `scripts/demo-push.sh break-port`. The deploy fails `UNHEALTHY`, the site still serves v2, and the agent card says the app listens on the wrong port, with the fix.
 4. **A crash** (1 min): run `scripts/demo-push.sh crash`. It fails within seconds, and the agent reports a missing `DATABASE_URL`.
 5. **Rollback** (30 s): click Roll back on the v2 deployment. It goes live without rebuilding.
-6. **Proof** (1 min): show `ArchitectureTest` and the test run (110 green), and the `jobs` and `deployment_events` tables.
-7. **Close** (30 s): future work (Kafka, Kubernetes, AWS, autoscaling).
+6. **Canary** (2 min): in the project's Settings choose **2 replicas** and **Canary**, save, run `scripts/demo-push.sh fix`. The stepper shows a Canary step with the live traffic split (20%, then 50%), and the log prints each step's numbers. Then run `scripts/demo-push.sh flaky` (30% of pages return 500 but `/health` is fine): it is rolled back at 20%, the site stays on the good version, and the agent says `CANARY_REGRESSION`.
+7. **Proof** (1 min): show `ArchitectureTest` and the test run (131 green), and the `jobs` and `deployment_events` tables.
+8. **Close** (30 s): future work (Kafka, Kubernetes, AWS, autoscaling).
 
 Restore the app afterwards with `scripts/demo-push.sh fix`. Always have the **recorded backup video** of this script ready.

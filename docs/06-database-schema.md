@@ -1,6 +1,6 @@
 # 06 — Database Schema (PostgreSQL 16)
 
-> Rubric item 8: tables, keys, relationships and indexes mapped from the class design. The real DDL is in `forge-server/src/main/resources/db/migration/V1…V8`. Flyway applies it, and Hibernate only **validates** that entities match (`ddl-auto: validate`).
+> Rubric item 8: tables, keys, relationships and indexes mapped from the class design. The real DDL is in `forge-server/src/main/resources/db/migration/V1…V9`. Flyway applies it, and Hibernate only **validates** that entities match (`ddl-auto: validate`).
 
 ## 1. ER diagram
 
@@ -94,11 +94,11 @@ erDiagram
 | `RefreshToken` (identity) | `refresh_tokens` | Composition with User → `ON DELETE CASCADE`. Only the SHA-256 is stored. |
 | `GitHubConnection` (source) | `github_connections` | `user_id UNIQUE` enforces the 0..1 multiplicity |
 | `WebhookDelivery` (source) | `webhook_deliveries` | The PK is GitHub's delivery id, so de-duplication is free |
-| `Project` (project) | `projects` | Value objects are **embedded as columns**: `Slug` → `slug`, `RepoRef` → `repo_owner`, `repo_name`, `BuildSettings` → `branch`, `root_dir`, `build_type`, `port`, `health_check_path`, `auto_deploy` |
+| `Project` (project) | `projects` | Value objects are **embedded as columns**: `Slug` → `slug`, `RepoRef` → `repo_owner`, `repo_name`, `BuildSettings` → `branch`, `root_dir`, `build_type`, `port`, `health_check_path`, `auto_deploy`, `RunSettings` → `replicas` (1–3), `rollout_strategy` |
 | `EnvironmentVariable` (project) | `environment_variables` | Composition → cascade. `UNIQUE(project_id, key)`. `value_enc` = AES-GCM bytes. |
 | `Deployment` (deployment) | `deployments` | Enums stored as `VARCHAR` + `CHECK`. `@Version` → `version`. Self-association `rollback_of_id`. |
 | `DeploymentEvent` (deployment) | `deployment_events` | Append-only. `BIGSERIAL` id preserves the order. |
-| `RuntimeInstanceRecord` (deployment) | `runtime_instances` | `deployment_id UNIQUE` enforces 0..1 |
+| `RuntimeInstanceRecord` (deployment) | `runtime_instances` | One row per replica: `UNIQUE (deployment_id, replica)` enforces 0..N (V9; it was 0..1) |
 | `LogLine` (logs, record) | `log_lines` | Written with JDBC (high volume). `UNIQUE(deployment_id, seq)`. |
 | `Insight` (agent) | `deployment_insights` | Shared primary key with `deployments` enforces 0..1 |
 | `Job` (jobs, record) | `jobs` | JDBC only. Payload is `jsonb`. |
@@ -116,11 +116,11 @@ slug VARCHAR(63) NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9
 
 -- FR-11: at most ONE in-progress deployment per project, enforced even if application code races
 CREATE UNIQUE INDEX ux_deployments_one_active ON deployments (project_id)
-    WHERE status IN ('BUILDING','DEPLOYING','HEALTH_CHECKING');
+    WHERE status IN ('BUILDING','DEPLOYING','HEALTH_CHECKING','CANARY');
 
 -- Status can only be a known state
 status VARCHAR(20) NOT NULL CHECK (status IN ('QUEUED','BUILDING','DEPLOYING','HEALTH_CHECKING',
-                                              'LIVE','FAILED','CANCELLED','SUPERSEDED','STOPPED'))
+                                              'CANARY','LIVE','FAILED','CANCELLED','SUPERSEDED','STOPPED'))
 
 -- The same job can't be queued twice (e.g. 'build:<deploymentId>')
 idempotency_key VARCHAR(100) UNIQUE
@@ -153,4 +153,4 @@ key VARCHAR(255) NOT NULL CHECK (key ~ '^[A-Za-z_][A-Za-z0-9_]*$'), UNIQUE (proj
 | Append-only `deployment_events` | Full audit: when and why every status changed |
 | Secrets as `BYTEA` ciphertext | A database dump alone reveals nothing |
 | Postgres also stores the job queue and logs | One transactional store: the deployment and its job commit together. Logs at real scale would move to object storage or Loki (future work). |
-| Never edit an applied migration | Every environment is reproducible from `V1…V8` |
+| Never edit an applied migration | Every environment is reproducible from `V1…V9` |

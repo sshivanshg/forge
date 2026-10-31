@@ -8,16 +8,16 @@ import com.forge.logs.LogSink;
 import com.forge.logs.LogSource;
 import com.forge.runtime.RuntimeProvider;
 import java.util.List;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Self-healing: every 30 s, checks that each LIVE deployment's container is still running. If it is
- * gone (the app crashed, the host rebooted, someone deleted it), Forge queues a RECOVERY deployment
- * of the same image, which goes through the normal blue-green rollout and health check.
+ * Self-healing: every 30 s, checks that each LIVE deployment's containers (one per replica) are
+ * still running. If one is gone (the app crashed, the host rebooted, someone deleted it), Forge
+ * queues a RECOVERY deployment of the same image, which goes through the normal blue-green rollout
+ * and health check while the remaining replicas keep serving.
  *
  * <p>Each live deployment is recovered at most once, so an image that can no longer start does not
  * loop forever; the failed RECOVERY deployment and its agent diagnosis show what went wrong.
@@ -31,7 +31,8 @@ public class LiveInstanceWatcher {
           DeploymentStatus.QUEUED,
           DeploymentStatus.BUILDING,
           DeploymentStatus.DEPLOYING,
-          DeploymentStatus.HEALTH_CHECKING);
+          DeploymentStatus.HEALTH_CHECKING,
+          DeploymentStatus.CANARY);
 
   private final DeploymentRepository deployments;
   private final DeploymentTransitions transitions;
@@ -91,7 +92,8 @@ public class LiveInstanceWatcher {
         || deployments.recoveryAttempted(live.id())) {
       return false; // a newer deployment will replace it anyway, or we already tried
     }
-    Optional<RuntimeInstanceRecord> instance = transitions.instanceOf(live.id());
-    return instance.isPresent() && !runtime.isRunning(instance.get().externalId());
+    List<RuntimeInstanceRecord> instances = transitions.instancesOf(live.id());
+    // One lost replica is enough: the recovery rolls out a full set while the others keep serving
+    return instances.stream().anyMatch(instance -> !runtime.isRunning(instance.externalId()));
   }
 }

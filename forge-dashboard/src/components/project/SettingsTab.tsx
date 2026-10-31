@@ -7,6 +7,7 @@ import {
   validateBuildSettings,
   type BuildSettingsValues,
 } from "@/components/project/BuildSettingsFields";
+import { RunSettingsFields, type RunSettingsValues } from "@/components/project/RunSettingsFields";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -31,6 +32,10 @@ function toValues(p: Project): BuildSettingsValues {
   };
 }
 
+function toRun(p: Project): RunSettingsValues {
+  return { replicas: p.replicas, rollout: p.rollout };
+}
+
 export function SettingsTab({ project, onUpdated }: Props) {
   const toast = useToast();
   const router = useRouter();
@@ -38,6 +43,7 @@ export function SettingsTab({ project, onUpdated }: Props) {
   const [name, setName] = useState(project.name);
   const [branch, setBranch] = useState(project.branch);
   const [settings, setSettings] = useState<BuildSettingsValues>(() => toValues(project));
+  const [run, setRun] = useState<RunSettingsValues>(() => toRun(project));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -50,6 +56,8 @@ export function SettingsTab({ project, onUpdated }: Props) {
   const dirty =
     name !== project.name ||
     branch !== project.branch ||
+    run.replicas !== project.replicas ||
+    run.rollout !== project.rollout ||
     (Object.keys(original) as (keyof BuildSettingsValues)[]).some((k) => original[k] !== settings[k]);
 
   async function onSave(e: FormEvent) {
@@ -71,9 +79,12 @@ export function SettingsTab({ project, onUpdated }: Props) {
         port: Number(settings.port),
         healthCheckPath: settings.healthCheckPath.trim() || "/",
         autoDeploy: settings.autoDeploy,
+        replicas: run.replicas,
+        rollout: run.rollout,
       });
       onUpdated(updated);
       setSettings(toValues(updated));
+      setRun(toRun(updated));
       toast.success("Settings saved", "They apply from the next deployment.");
     } catch (err) {
       if (err instanceof ApiError) setErrors(err.fieldErrors);
@@ -124,6 +135,9 @@ export function SettingsTab({ project, onUpdated }: Props) {
                 idPrefix="set"
               />
             </div>
+            <div className="border-t border-white/[0.06] pt-5">
+              <RunSettingsFields values={run} onChange={(patch) => setRun((r) => ({ ...r, ...patch }))} idPrefix="set" />
+            </div>
           </div>
           <div className="flex items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-3">
             {dirty && (
@@ -133,6 +147,7 @@ export function SettingsTab({ project, onUpdated }: Props) {
                   setName(project.name);
                   setBranch(project.branch);
                   setSettings(toValues(project));
+                  setRun(toRun(project));
                   setErrors({});
                 }}
               >

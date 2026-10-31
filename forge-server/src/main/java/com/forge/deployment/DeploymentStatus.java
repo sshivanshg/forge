@@ -10,9 +10,9 @@ import java.util.Set;
  * else.
  *
  * <pre>
- * QUEUED → BUILDING → DEPLOYING → HEALTH_CHECKING → LIVE → SUPERSEDED | STOPPED
- *    │         │           │              │
- *    │         └→ FAILED ←─┴──────────────┘
+ * QUEUED → BUILDING → DEPLOYING → HEALTH_CHECKING → [CANARY →] LIVE → SUPERSEDED | STOPPED
+ *    │         │           │              │              │
+ *    │         └→ FAILED ←─┴──────────────┴──────────────┘
  *    ├→ DEPLOYING (rollback: the image already exists)
  *    └→ CANCELLED (also from BUILDING)
  * </pre>
@@ -22,6 +22,8 @@ public enum DeploymentStatus {
   BUILDING,
   DEPLOYING,
   HEALTH_CHECKING,
+  /** Healthy and serving a share of the traffic while Forge compares it with the live version. */
+  CANARY,
   LIVE,
   FAILED,
   CANCELLED,
@@ -33,7 +35,8 @@ public enum DeploymentStatus {
           QUEUED, EnumSet.of(BUILDING, DEPLOYING, CANCELLED),
           BUILDING, EnumSet.of(DEPLOYING, FAILED, CANCELLED),
           DEPLOYING, EnumSet.of(HEALTH_CHECKING, FAILED),
-          HEALTH_CHECKING, EnumSet.of(LIVE, FAILED),
+          HEALTH_CHECKING, EnumSet.of(CANARY, LIVE, FAILED),
+          CANARY, EnumSet.of(LIVE, FAILED),
           LIVE, EnumSet.of(SUPERSEDED, STOPPED),
           FAILED, EnumSet.noneOf(DeploymentStatus.class),
           CANCELLED, EnumSet.noneOf(DeploymentStatus.class),
@@ -51,6 +54,6 @@ public enum DeploymentStatus {
 
   /** Statuses in which the deployment occupies the project's pipeline. */
   public boolean isInProgress() {
-    return this == BUILDING || this == DEPLOYING || this == HEALTH_CHECKING;
+    return this == BUILDING || this == DEPLOYING || this == HEALTH_CHECKING || this == CANARY;
   }
 }

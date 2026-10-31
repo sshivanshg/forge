@@ -4,11 +4,12 @@
 #   v2          – visible change ("v2"), deploys with zero downtime
 #   break-port  – app ignores PORT and listens on 3000 → health check fails → agent: PORT_MISMATCH
 #   crash       – app throws at startup → agent: CRASH_ON_STARTUP / MISSING_CONFIGURATION
+#   flaky       – healthy, but 30% of page requests fail with 500 → a CANARY project rolls it back
 #   fix         – restores the original app
 # Usage: scripts/demo-push.sh <scenario> [app]
 set -euo pipefail
 
-SCENARIO="${1:?scenario: v2 | break-port | crash | fix}"
+SCENARIO="${1:?scenario: v2 | break-port | crash | flaky | fix}"
 APP="${2:-hello-node}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPOS="${FORGE_DEMO_REPOS:-$HOME/.forge/demo-repos}"
@@ -22,6 +23,7 @@ case "$SCENARIO" in
   v2)         sed -i '' 's/const version = "v1"/const version = "v2"/' "$work/server.js"; msg="feat: release v2" ;;
   break-port) sed -i '' 's/Number(process.env.PORT || 8080)/3000/' "$work/server.js"; msg="refactor: simplify port config" ;;
   crash)      printf 'if (!process.env.DATABASE_URL) {\n  throw new Error("DATABASE_URL is not defined");\n}\n' | cat - "$work/server.js" > "$work/tmp.js" && mv "$work/tmp.js" "$work/server.js"; msg="feat: connect to the database" ;;
+  flaky)      perl -0pi -e 's/const version = "v1"/const version = "v3"/; s/(\n  res\.writeHead\(200, \{ "Content-Type": "text\/html)/\n  if (Math.random() < 0.3) {\n    res.writeHead(500, { "Content-Type": "text\/plain" });\n    return res.end("Internal Server Error");\n  }$1/' "$work/server.js"; msg="feat: new landing page" ;;
   fix)        msg="fix: restore working version" ;;
   *)          echo "unknown scenario $SCENARIO"; exit 1 ;;
 esac

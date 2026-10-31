@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentInsightCard } from "@/components/deployment/AgentInsightCard";
 import { PipelineStepper } from "@/components/deployment/PipelineStepper";
 import { RollbackDialog } from "@/components/deployment/RollbackDialog";
+import { TrafficSplit } from "@/components/deployment/TrafficSplit";
 import { TriggerLabel } from "@/components/deployment/TriggerLabel";
 import { LogTerminal, StreamIndicator, type TerminalLine } from "@/components/LogTerminal";
 import { Alert } from "@/components/ui/Alert";
@@ -19,7 +20,17 @@ import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { absoluteTime, durationBetween, relativeTime, shortSha } from "@/lib/format";
 import { useQuery, useTick } from "@/lib/hooks";
-import { canCancel, canRollback, deploymentTitle, FAILURE_LABEL, isInProgress, isPipelineStep, stepForFailure } from "@/lib/status";
+import {
+  canCancel,
+  canRollback,
+  deploymentTitle,
+  FAILURE_LABEL,
+  isInProgress,
+  isPipelineStep,
+  stepForFailure,
+  usedCanary,
+} from "@/lib/status";
+import { ALL_PIPELINE_STEPS, PIPELINE_STEPS } from "@/lib/types";
 import type { Deployment, DeploymentStatus, FailureReason, LogLine, PipelineStep } from "@/lib/types";
 import { useEventStream } from "@/lib/useEventStream";
 
@@ -116,6 +127,13 @@ export default function DeploymentPage() {
   const running = !!status && isInProgress(status);
   useTick(1000, running);
 
+  // The traffic share changes within CANARY (no status event), so poll while it lasts.
+  useEffect(() => {
+    if (status !== "CANARY") return;
+    const timer = window.setInterval(reload, 3000);
+    return () => window.clearInterval(timer);
+  }, [status, reload]);
+
   const enteredAt = useMemo(() => {
     const m: Partial<Record<DeploymentStatus, string>> = { ...seenAt };
     if (d) m.QUEUED = d.createdAt;
@@ -170,6 +188,14 @@ export default function DeploymentPage() {
   const failureReason = live?.failureReason ?? d.failureReason;
   const isLiveNow = status === "LIVE"; // only one deployment per project can be LIVE
   const commitUrl = p && d.commitSha ? `${p.repoUrl}/commit/${d.commitSha}` : null;
+  const willCanary =
+    running &&
+    p?.rollout === "CANARY" &&
+    !!p.liveDeploymentId &&
+    p.liveDeploymentId !== d.id &&
+    d.trigger !== "ROLLBACK" &&
+    d.trigger !== "RECOVERY";
+  const steps = usedCanary({ status, failureReason, timeline: d.timeline }) || willCanary ? ALL_PIPELINE_STEPS : PIPELINE_STEPS;
 
   return (
     <div className="space-y-6">
@@ -262,7 +288,11 @@ export default function DeploymentPage() {
           enteredAt={enteredAt}
           finishedAt={d.finishedAt}
           skipped={d.trigger === "ROLLBACK" || d.trigger === "RECOVERY" ? ["BUILDING"] : []}
+          steps={steps}
         />
+        {status === "CANARY" && d.trafficPercent !== null && (
+          <TrafficSplit percent={d.trafficPercent} className="mx-auto mt-6 max-w-xl border-t border-white/[0.06] pt-5" />
+        )}
       </Card>
 
       {/* Failure + agent */}

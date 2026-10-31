@@ -10,8 +10,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Bookkeeping of what the control plane started in the data plane, so a deployment's container can
- * be found again (to stream its logs, to stop it when it is replaced or the project deleted).
+ * Bookkeeping of what the control plane started in the data plane (one row per replica), so a
+ * deployment's containers can be found again (to stream its logs, to stop it when it is replaced or
+ * the project deleted).
  */
 @Entity
 @Table(name = "runtime_instances")
@@ -26,8 +27,12 @@ public class RuntimeInstanceRecord {
 
   @Id private UUID id;
 
-  @Column(name = "deployment_id", nullable = false, unique = true)
+  @Column(name = "deployment_id", nullable = false)
   private UUID deploymentId;
+
+  /** 0-based index among the deployment's replicas. */
+  @Column(nullable = false)
+  private int replica;
 
   @Column(nullable = false)
   private String kind;
@@ -53,9 +58,10 @@ public class RuntimeInstanceRecord {
   }
 
   public RuntimeInstanceRecord(
-      UUID deploymentId, String externalId, String internalUrl, Instant now) {
+      UUID deploymentId, int replica, String externalId, String internalUrl, Instant now) {
     this.id = UUID.randomUUID();
     this.deploymentId = deploymentId;
+    this.replica = replica;
     this.kind = "DOCKER";
     this.externalId = externalId;
     this.internalUrl = internalUrl;
@@ -82,6 +88,10 @@ public class RuntimeInstanceRecord {
 
   public UUID deploymentId() {
     return deploymentId;
+  }
+
+  public int replica() {
+    return replica;
   }
 
   public String externalId() {

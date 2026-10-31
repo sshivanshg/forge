@@ -4,6 +4,7 @@ import com.forge.project.ProjectDeleting;
 import com.forge.project.domain.BuildSettings;
 import com.forge.project.domain.Project;
 import com.forge.project.domain.RepoRef;
+import com.forge.project.domain.RunSettings;
 import com.forge.project.domain.Slug;
 import com.forge.project.infrastructure.ProjectRepository;
 import com.forge.shared.error.ErrorCode;
@@ -79,6 +80,12 @@ public class ProjectService {
             coalesce(command.port(), current.port()),
             coalesce(command.healthCheckPath(), current.healthCheckPath()),
             coalesce(command.autoDeploy(), current.autoDeploy())),
+        now);
+    RunSettings run = project.runSettings();
+    project.changeRunSettings(
+        new RunSettings(
+            coalesce(command.replicas(), run.replicas()),
+            coalesce(command.rollout(), run.rollout())),
         now);
     return project;
   }

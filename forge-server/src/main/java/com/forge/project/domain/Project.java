@@ -2,6 +2,7 @@ package com.forge.project.domain;
 
 import com.forge.build.BuildType;
 import com.forge.project.ProjectSnapshot;
+import com.forge.project.RolloutMode;
 import com.forge.shared.error.ValidationException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -56,6 +57,13 @@ public class Project {
   @Column(name = "auto_deploy", nullable = false)
   private boolean autoDeploy;
 
+  @Column(nullable = false)
+  private int replicas;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "rollout_strategy", nullable = false)
+  private RolloutMode rollout;
+
   @Column(name = "live_deployment_id")
   private UUID liveDeploymentId;
 
@@ -78,6 +86,7 @@ public class Project {
     rename(name, now);
     changeRepository(repo, now);
     changeBuildSettings(settings, now);
+    changeRunSettings(RunSettings.defaults(), now);
   }
 
   public void rename(String newName, Instant now) {
@@ -104,6 +113,13 @@ public class Project {
     this.updatedAt = now;
   }
 
+  /** Takes effect with the next deployment. */
+  public void changeRunSettings(RunSettings settings, Instant now) {
+    this.replicas = settings.replicas();
+    this.rollout = settings.rollout();
+    this.updatedAt = now;
+  }
+
   public void markLive(UUID deploymentId, Instant now) {
     this.liveDeploymentId = deploymentId;
     this.updatedAt = now;
@@ -115,6 +131,10 @@ public class Project {
 
   public BuildSettings buildSettings() {
     return new BuildSettings(branch, rootDir, buildType, port, healthCheckPath, autoDeploy);
+  }
+
+  public RunSettings runSettings() {
+    return new RunSettings(replicas, rollout);
   }
 
   public ProjectSnapshot snapshot() {
@@ -131,6 +151,8 @@ public class Project {
         port,
         healthCheckPath,
         autoDeploy,
+        replicas,
+        rollout,
         liveDeploymentId);
   }
 

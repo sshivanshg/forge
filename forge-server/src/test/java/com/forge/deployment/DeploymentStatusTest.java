@@ -1,6 +1,7 @@
 package com.forge.deployment;
 
 import static com.forge.deployment.DeploymentStatus.BUILDING;
+import static com.forge.deployment.DeploymentStatus.CANARY;
 import static com.forge.deployment.DeploymentStatus.CANCELLED;
 import static com.forge.deployment.DeploymentStatus.DEPLOYING;
 import static com.forge.deployment.DeploymentStatus.FAILED;
@@ -26,7 +27,8 @@ class DeploymentStatusTest {
           QUEUED, EnumSet.of(BUILDING, DEPLOYING, CANCELLED),
           BUILDING, EnumSet.of(DEPLOYING, FAILED, CANCELLED),
           DEPLOYING, EnumSet.of(HEALTH_CHECKING, FAILED),
-          HEALTH_CHECKING, EnumSet.of(LIVE, FAILED),
+          HEALTH_CHECKING, EnumSet.of(CANARY, LIVE, FAILED),
+          CANARY, EnumSet.of(LIVE, FAILED),
           LIVE, EnumSet.of(SUPERSEDED, STOPPED),
           FAILED, EnumSet.noneOf(DeploymentStatus.class),
           CANCELLED, EnumSet.noneOf(DeploymentStatus.class),
@@ -53,6 +55,6 @@ class DeploymentStatusTest {
   void onlyPipelineStatesCountAsInProgress() {
     assertThat(
             EnumSet.allOf(DeploymentStatus.class).stream().filter(DeploymentStatus::isInProgress))
-        .containsExactlyInAnyOrder(BUILDING, DEPLOYING, HEALTH_CHECKING);
+        .containsExactlyInAnyOrder(BUILDING, DEPLOYING, HEALTH_CHECKING, CANARY);
   }
 }

@@ -117,6 +117,32 @@ class DeploymentTest {
   }
 
   @Test
+  void canaryTracksItsShareOfTrafficUntilItGoesLive() {
+    Deployment d = request();
+    d.startBuild(NOW);
+    d.buildSucceeded("img:2", null, NOW);
+    d.startHealthCheck(NOW);
+
+    d.startCanary(20, NOW);
+    d.shiftTraffic(50);
+    assertThat(d.status()).isEqualTo(DeploymentStatus.CANARY);
+    assertThat(d.trafficPercent()).isEqualTo(50);
+
+    d.goLive(NOW);
+    assertThat(d.trafficPercent()).isNull();
+    assertThat(events(d))
+        .extracting(DeploymentStatusChanged::message)
+        .contains("Canary started with 20% of traffic", "Canary passed, all traffic switched");
+  }
+
+  @Test
+  void trafficCanOnlyShiftDuringACanary() {
+    Deployment d = request();
+    assertThatThrownBy(() -> d.shiftTraffic(50))
+        .isInstanceOf(IllegalStateTransitionException.class);
+  }
+
+  @Test
   void cannotRollBackToADeploymentThatNeverWentLive() {
     Deployment failed = request();
     failed.startBuild(NOW);

@@ -63,6 +63,7 @@ public class DeploymentQueryService implements DeploymentQueries {
         d.commitMessage(),
         d.trigger(),
         d.status(),
+        d.trafficPercent(),
         d.failureReason(),
         d.failureDetail(),
         d.imageRef(),

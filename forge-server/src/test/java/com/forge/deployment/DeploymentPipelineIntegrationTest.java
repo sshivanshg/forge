@@ -5,12 +5,15 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,6 +34,9 @@ import com.forge.logs.LogSink;
 import com.forge.logs.LogSource;
 import com.forge.runtime.RunningInstance;
 import com.forge.runtime.RuntimeProvider;
+import com.forge.runtime.TrafficMetrics;
+import com.forge.runtime.TrafficSample;
+import com.forge.runtime.TrafficSplitter;
 import com.forge.source.CommitInfo;
 import com.forge.source.SourceCodeProvider;
 import com.forge.support.AbstractIntegrationTest;
@@ -38,9 +44,12 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -58,6 +67,8 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
   @MockitoBean BuildService builds;
   @MockitoBean RuntimeProvider runtime;
   @MockitoBean HealthProbe health;
+  @MockitoBean TrafficSplitter splitter;
+  @MockitoBean TrafficMetrics metrics;
 
   @Autowired PostgresJobQueue queue;
   @Autowired JobRunner runner;
@@ -233,6 +244,113 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
+  void canaryEarnsTrafficInStepsAndGoesLiveWhenAsGoodAsTheLiveVersion() throws Exception {
+    configure("{\"rollout\":\"CANARY\"}");
+    String first = deploy().get("id").asText();
+    drainJobs(); // nothing live yet to compare with: blue-green
+    assertThat(logLines(first)).anyMatch(l -> l.contains("no live version to compare with"));
+
+    traffic(null, 50, 0); // every version: 50 requests per step, no errors
+    String second = deploy().get("id").asText();
+    drainJobs();
+
+    JsonNode canary = getDeployment(second);
+    assertThat(canary.get("status").asText()).isEqualTo("LIVE");
+    assertThat(canary.get("timeline").findValuesAsText("to"))
+        .containsExactly("QUEUED", "BUILDING", "DEPLOYING", "HEALTH_CHECKING", "CANARY", "LIVE");
+    assertThat(getDeployment(first).get("status").asText()).isEqualTo("SUPERSEDED");
+    UUID id = UUID.fromString(second);
+    InOrder order = inOrder(splitter);
+    order.verify(splitter).split("hello-app", id, 0); // held back until healthy
+    order.verify(splitter).split("hello-app", id, 20);
+    order.verify(splitter).split("hello-app", id, 50);
+    order.verify(splitter).split("hello-app", id, 100);
+    order.verify(splitter).reset("hello-app");
+    verify(runtime).stop("container-1");
+    assertThat(logLines(second)).anyMatch(l -> l.startsWith("▶ Step passed: new version: "));
+  }
+
+  @Test
+  void canaryWithMoreErrorsThanTheLiveVersionIsRolledBackAutomatically() throws Exception {
+    configure("{\"rollout\":\"CANARY\"}");
+    String good = deploy().get("id").asText();
+    drainJobs();
+
+    traffic(null, 50, 0);
+    String bad = deploy().get("id").asText();
+    traffic(UUID.fromString(bad), 50, 20); // 40% of its requests fail
+    drainJobs();
+
+    JsonNode failed = getDeployment(bad);
+    assertThat(failed.get("status").asText()).isEqualTo("FAILED");
+    assertThat(failed.get("failureReason").asText()).isEqualTo("CANARY_REGRESSION");
+    assertThat(failed.get("failureDetail").asText()).startsWith("error rate is 40.0% higher");
+    assertThat(getDeployment(good).get("status").asText()).isEqualTo("LIVE");
+    UUID id = UUID.fromString(bad);
+    InOrder order = inOrder(splitter);
+    order.verify(splitter).split("hello-app", id, 20);
+    order.verify(splitter).split("hello-app", id, 0); // traffic back to the live version first
+    verify(splitter, never()).split("hello-app", id, 50); // stopped at the first step
+    verify(runtime).stop("container-2");
+    verify(runtime, never()).stop("container-1");
+    assertThat(logLines(bad)).anyMatch(l -> l.contains("Canary rolled back at 20% of traffic"));
+  }
+
+  @Test
+  void rollbackOfACanaryProjectSwitchesAtOnce() throws Exception {
+    configure("{\"rollout\":\"CANARY\"}");
+    String first = deploy().get("id").asText();
+    drainJobs();
+    traffic(null, 50, 0);
+    deploy();
+    drainJobs();
+
+    String rollback =
+        read(mvc.perform(
+                    post("/api/v1/deployments/" + first + "/rollback")
+                        .header("Authorization", bearer(token)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString())
+            .get("id")
+            .asText();
+    drainJobs();
+
+    assertThat(getDeployment(rollback).get("status").asText()).isEqualTo("LIVE");
+    assertThat(getDeployment(rollback).get("timeline").findValuesAsText("to"))
+        .doesNotContain("CANARY");
+    assertThat(logLines(rollback)).anyMatch(l -> l.contains("a rollback switches at once"));
+  }
+
+  @Test
+  void replicasRunSideBySideAndOneLostReplicaIsRecovered() throws Exception {
+    mvc.perform(
+            patch("/api/v1/projects/" + projectId)
+                .header("Authorization", bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"replicas\":4}"))
+        .andExpect(status().isBadRequest());
+    configure("{\"replicas\":2}");
+
+    String first = deploy().get("id").asText();
+    drainJobs();
+    verify(runtime, times(2)).start(any());
+    assertThat(getDeployment(first).get("status").asText()).isEqualTo("LIVE");
+    assertThat(logLines(first)).anyMatch(l -> l.contains("All 2 replicas healthy"));
+
+    when(runtime.isRunning("container-2")).thenReturn(false); // one replica crashed
+    assertThat(watcher.checkLiveInstances()).isEqualTo(1);
+    drainJobs();
+
+    JsonNode recovered = getDeployment(project().get("liveDeploymentId").asText());
+    assertThat(recovered.get("trigger").asText()).isEqualTo("RECOVERY");
+    assertThat(recovered.get("status").asText()).isEqualTo("LIVE");
+    verify(runtime, times(4)).start(any()); // a full new set of two
+    verify(runtime).stop("container-1"); // the surviving old replica, once the new set was live
+    verify(runtime).stop("container-2");
+  }
+
+  @Test
   void newerRequestSupersedesOneStillWaitingInTheQueue() throws Exception {
     String older = deploy().get("id").asText();
     String newer = deploy().get("id").asText();
@@ -294,6 +412,29 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
                 3,
                 Duration.ofSeconds(4),
                 ok ? "HTTP 200 from /health" : "process exited (Connection refused)"));
+  }
+
+  /**
+   * The proxy's counters for matching versions grow by {@code perStep} requests ({@code errors} of
+   * them 5xx, 10 ms each) every time they are read, i.e. per canary step.
+   */
+  private void traffic(UUID version, long perStep, long errors) {
+    AtomicLong reads = new AtomicLong();
+    when(metrics.sample(eq("hello-app"), version == null ? any() : eq(version)))
+        .thenAnswer(
+            call -> {
+              long n = reads.incrementAndGet();
+              return Optional.of(new TrafficSample(n * perStep, n * errors, n * perStep * 0.01));
+            });
+  }
+
+  private void configure(String json) throws Exception {
+    mvc.perform(
+            patch("/api/v1/projects/" + projectId)
+                .header("Authorization", bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json))
+        .andExpect(status().isOk());
   }
 
   /** Runs queued jobs synchronously until the queue is empty (what workers do in production). */
