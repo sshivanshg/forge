@@ -92,6 +92,31 @@ class DeploymentTest {
   }
 
   @Test
+  void recoveryRestartsTheLiveImageWithoutAUser() {
+    Deployment live = request();
+    live.startBuild(NOW);
+    live.buildSucceeded("img:1", null, NOW);
+    live.startHealthCheck(NOW);
+    live.goLive(NOW);
+
+    Deployment recovery = Deployment.recoveryOf(live, NOW);
+
+    assertThat(recovery.trigger()).isEqualTo(DeploymentTrigger.RECOVERY);
+    assertThat(recovery.rollbackOfId()).isEqualTo(live.id());
+    assertThat(recovery.imageRef()).isEqualTo("img:1");
+    assertThatThrownBy(
+            () ->
+                Deployment.request(
+                    live.projectId(),
+                    live.commitSha(),
+                    null,
+                    DeploymentTrigger.RECOVERY,
+                    null,
+                    NOW))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void cannotRollBackToADeploymentThatNeverWentLive() {
     Deployment failed = request();
     failed.startBuild(NOW);

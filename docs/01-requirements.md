@@ -119,7 +119,7 @@ Allowed only in `QUEUED` or `BUILDING` (409 otherwise). A cancelled build's imag
 | **Security** | No plaintext secrets at rest, in logs, or in prompts | BCrypt, hashed refresh tokens, AES-GCM, an HMAC-verified webhook, ownership checks (404 not 403), secret redaction before the agent sees logs, resource-limited containers |
 | **Observability** | Every log line is traceable | Correlation id per request and deployment id per job in the MDC. Micrometer metrics at `/actuator/prometheus`. |
 | **Maintainability** | Modules cannot silently couple | Spring Modulith and ArchUnit tests fail the build on boundary violations |
-| **Testability** | Core logic tested against real infrastructure | 110 tests: unit, integration against a real Postgres (local or Testcontainers), architecture |
+| **Testability** | Core logic tested against real infrastructure | 114 tests: unit, integration against a real Postgres (local or Testcontainers), architecture |
 | **Portability** | One command starts the infrastructure; the container engine is swappable | `scripts/infra.sh up` (Apple container, default). `forge.engine=docker` + `infra/docker-compose.yml` on Linux and CI. |
 
 ## 7. Scope

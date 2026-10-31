@@ -1,6 +1,6 @@
 # 06 — Database Schema (PostgreSQL 16)
 
-> Rubric item 8: tables, keys, relationships and indexes mapped from the class design. The real DDL is in `forge-server/src/main/resources/db/migration/V1…V7`. Flyway applies it, and Hibernate only **validates** that entities match (`ddl-auto: validate`).
+> Rubric item 8: tables, keys, relationships and indexes mapped from the class design. The real DDL is in `forge-server/src/main/resources/db/migration/V1…V8`. Flyway applies it, and Hibernate only **validates** that entities match (`ddl-auto: validate`).
 
 ## 1. ER diagram
 
@@ -153,4 +153,4 @@ key VARCHAR(255) NOT NULL CHECK (key ~ '^[A-Za-z_][A-Za-z0-9_]*$'), UNIQUE (proj
 | Append-only `deployment_events` | Full audit: when and why every status changed |
 | Secrets as `BYTEA` ciphertext | A database dump alone reveals nothing |
 | Postgres also stores the job queue and logs | One transactional store: the deployment and its job commit together. Logs at real scale would move to object storage or Loki (future work). |
-| Never edit an applied migration | Every environment is reproducible from `V1…V7` |
+| Never edit an applied migration | Every environment is reproducible from `V1…V8` |

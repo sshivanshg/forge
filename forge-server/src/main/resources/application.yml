@@ -63,6 +63,9 @@ forge:
     jwt-secret: ${FORGE_JWT_SECRET}
     access-token-ttl: 15m
     refresh-token-ttl: 30d
+    # Optional demo account, created at startup if missing (the login page offers it)
+    demo-email: ${FORGE_DEMO_EMAIL:}
+    demo-password: ${FORGE_DEMO_PASSWORD:}
   web:
     allowed-origins: ${FORGE_ALLOWED_ORIGINS:http://localhost:3000}
   apps:

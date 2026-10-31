@@ -73,15 +73,20 @@ class BlueGreenRollout implements RolloutStrategy {
             + " to respond (up to "
             + properties.healthTimeout().toSeconds()
             + "s)");
+    ListeningPortWatch port = new ListeningPortWatch(runtime, green.instanceId(), project.port());
     HealthResult result =
         health.awaitHealthy(
             green.probeUrl(),
             project.healthCheckPath(),
             properties.healthTimeout(),
-            () -> runtime.isRunning(green.instanceId()));
+            () -> runtime.isRunning(green.instanceId()) && port.portLooksRight());
 
     if (!result.healthy()) {
-      rejectGreen(id, green, result);
+      HealthResult reason =
+          port.problem()
+              .map(p -> new HealthResult(false, result.attempts(), result.elapsed(), p))
+              .orElse(result);
+      rejectGreen(id, green, reason);
       return;
     }
 
