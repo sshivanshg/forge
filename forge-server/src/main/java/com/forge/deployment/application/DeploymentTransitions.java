@@ -84,6 +84,16 @@ public class DeploymentTransitions {
     return rollback;
   }
 
+  /** Creates a RECOVERY deployment of a live version whose container is gone: no rebuild. */
+  @Transactional
+  public Deployment queueRecovery(UUID liveId) {
+    Deployment live = load(liveId);
+    Deployment recovery = Deployment.recoveryOf(live, now());
+    deployments.save(recovery);
+    jobs.enqueue(JobType.DEPLOY, new DeployJobPayload(recovery.id()), "deploy:" + recovery.id());
+    return recovery;
+  }
+
   /**
    * QUEUED → BUILDING. Returns empty if the deployment was cancelled while waiting.
    *

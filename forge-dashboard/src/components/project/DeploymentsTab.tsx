@@ -18,6 +18,13 @@ import type { Deployment, Project } from "@/lib/types";
 
 const PAGE_SIZE = 15;
 
+const TRIGGER_SHORT: Record<Deployment["trigger"], string> = {
+  MANUAL: "manual",
+  WEBHOOK: "push",
+  ROLLBACK: "rollback",
+  RECOVERY: "auto-recovery",
+};
+
 interface Props {
   project: Project;
   onDeploy: () => void;
@@ -94,7 +101,7 @@ export function DeploymentsTab({ project, onDeploy, deploying }: Props) {
                   <span className="font-mono text-zinc-400">{shortSha(d.commitSha)}</span>
                   <span className="inline-flex items-center gap-1">
                     <TriggerIcon trigger={d.trigger} className="size-3" />
-                    {d.trigger === "ROLLBACK" ? "rollback" : d.trigger === "WEBHOOK" ? "push" : "manual"}
+                    {TRIGGER_SHORT[d.trigger]}
                   </span>
                   {isCurrent && <span className="font-medium text-emerald-400">● current</span>}
                   {d.status === "FAILED" && d.failureReason && (

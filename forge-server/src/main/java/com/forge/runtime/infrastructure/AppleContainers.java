@@ -43,7 +43,11 @@ class AppleContainers {
   Optional<Info> inspect(String id) {
     ContainerCli.Result result = cli.run(QUERY_TIMEOUT, "inspect", id);
     if (!result.ok()) {
-      return Optional.empty();
+      if (result.text().contains("not found")) {
+        return Optional.empty();
+      }
+      // The engine itself failed: don't report the container as gone on a guess
+      throw new ExternalServiceException("container inspect failed: " + result.text(), null);
     }
     return parse(result.text()).stream().findFirst();
   }

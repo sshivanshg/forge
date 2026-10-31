@@ -25,4 +25,13 @@ public interface DeploymentRepository extends JpaRepository<Deployment, UUID> {
           + " com.forge.deployment.DeploymentStatus.DEPLOYING,"
           + " com.forge.deployment.DeploymentStatus.HEALTH_CHECKING)")
   boolean anotherInProgress(UUID projectId, UUID excludeId);
+
+  @Query("select d from Deployment d where d.status = com.forge.deployment.DeploymentStatus.LIVE")
+  List<Deployment> findLive();
+
+  /** Has Forge already tried to recover this deployment (successfully or not)? */
+  @Query(
+      "select count(d) > 0 from Deployment d where d.rollbackOfId = :liveId"
+          + " and d.trigger = com.forge.deployment.DeploymentTrigger.RECOVERY")
+  boolean recoveryAttempted(UUID liveId);
 }

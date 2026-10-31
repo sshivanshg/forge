@@ -4,5 +4,7 @@ package com.forge.deployment;
 public enum DeploymentTrigger {
   MANUAL,
   WEBHOOK,
-  ROLLBACK
+  ROLLBACK,
+  /** Forge found the live container gone and started the same image again. */
+  RECOVERY
 }

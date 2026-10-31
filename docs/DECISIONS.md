@@ -4,6 +4,23 @@ Scope decisions, newest first. **When a decision here conflicts with another doc
 
 ---
 
+## D-005 — Self-healing, early port-mismatch failure, demo account (2026-10-31)
+
+**Context:** using Forge end to end as a user surfaced three gaps. After the Mac restarted, every project still said **Live** while its container was gone. A wrong port cost the full 90 s health timeout although the app announced the problem in its first log line. And showing Forge to someone meant typing credentials.
+
+**Decision:**
+| Gap | Change | Where |
+|-----|--------|-------|
+| Live apps silently gone | `LiveInstanceWatcher` checks every 30 s that each LIVE deployment's container still runs. If not, it queues a **`RECOVERY` deployment of the same image** (no rebuild) that goes through the normal blue-green rollout and health check. At most one recovery per live deployment, so a broken image can't loop; engine errors never count as "gone". | `deployment.application`, migration `V8` |
+| Slow wrong-port failures | `ListeningPortWatch` reads the new container's output during the health check; when the app announces only other ports than the project's, the check ends at once with "app is listening on port 3000, but the project expects 8080". | `deployment.application` |
+| Demoing | `FORGE_DEMO_EMAIL` / `FORGE_DEMO_PASSWORD` create a demo account at startup; the login page offers it with one click when `NEXT_PUBLIC_DEMO_*` are set. | `identity.application.DemoAccountSeeder`, `AuthForm` |
+
+**Why it matters for the design:** recovery reuses the rollback path (`Deployment.recoveryOf` beside `rollbackTo`, both via one private factory), so a new trigger needed no new pipeline code. The watcher depends only on the `RuntimeProvider` port, so it works on both engines.
+
+**Trade-off:** a public demo account lets anyone deploy code on that server; enable it only while demoing.
+
+---
+
 ## D-004 — User apps run on Apple container, not Docker (2026-10-29)
 
 **Context:** Docker Desktop was removed from the development Mac (it crashed under memory pressure and corrupted its image store), and we were asked to use Apple's own container runtime instead.

@@ -9,9 +9,11 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param drainDelay pause between the new instance going live and the old one being stopped, so the
  *     proxy has time to route to the new instance
  * @param busyRetryDelay when another deployment of the project is in progress, try again after this
+ * @param selfHeal redeploy a live version's image when its container disappears
  */
 @ConfigurationProperties("forge.deploy")
 public record DeploymentProperties(
     @DefaultValue("90s") Duration healthTimeout,
     @DefaultValue("3s") Duration drainDelay,
-    @DefaultValue("15s") Duration busyRetryDelay) {}
+    @DefaultValue("15s") Duration busyRetryDelay,
+    @DefaultValue("true") boolean selfHeal) {}

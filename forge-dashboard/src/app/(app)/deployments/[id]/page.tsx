@@ -168,7 +168,7 @@ export default function DeploymentPage() {
 
   const p = project.data;
   const failureReason = live?.failureReason ?? d.failureReason;
-  const isLiveNow = p?.liveDeploymentId === d.id && status === "LIVE";
+  const isLiveNow = status === "LIVE"; // only one deployment per project can be LIVE
   const commitUrl = p && d.commitSha ? `${p.repoUrl}/commit/${d.commitSha}` : null;
 
   return (
@@ -224,7 +224,7 @@ export default function DeploymentPage() {
             )}
             {d.rollbackOfId && (
               <Link href={`/deployments/${d.rollbackOfId}`} className="inline-flex items-center gap-1 text-violet-400 hover:text-violet-300">
-                <Undo2 className="size-3.5" aria-hidden /> Rollback of {d.rollbackOfId.slice(0, 8)}
+                <Undo2 className="size-3.5" aria-hidden /> {d.trigger === "RECOVERY" ? "Recovery of" : "Rollback of"} {d.rollbackOfId.slice(0, 8)}
               </Link>
             )}
           </div>
@@ -261,7 +261,7 @@ export default function DeploymentPage() {
           stoppedAt={stoppedStep(d, status, lastStep)}
           enteredAt={enteredAt}
           finishedAt={d.finishedAt}
-          skipped={d.trigger === "ROLLBACK" ? ["BUILDING"] : []}
+          skipped={d.trigger === "ROLLBACK" || d.trigger === "RECOVERY" ? ["BUILDING"] : []}
         />
       </Card>
 
