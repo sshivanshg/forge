@@ -119,7 +119,7 @@ export type FailureReason =
   | "UNHEALTHY"
   | "INTERNAL_ERROR";
 
-export type DeploymentTrigger = "MANUAL" | "WEBHOOK" | "ROLLBACK";
+export type DeploymentTrigger = "MANUAL" | "WEBHOOK" | "ROLLBACK" | "RECOVERY";
 
 export interface TimelineEntry {
   from: DeploymentStatus | null;

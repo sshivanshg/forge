@@ -1,10 +1,11 @@
-import { Undo2, User, Webhook } from "lucide-react";
+import { HeartPulse, Undo2, User, Webhook } from "lucide-react";
 import type { DeploymentTrigger } from "@/lib/types";
 
 const TRIGGERS: Record<DeploymentTrigger, { label: string; Icon: typeof User }> = {
   MANUAL: { label: "Manual", Icon: User },
   WEBHOOK: { label: "Git push", Icon: Webhook },
   ROLLBACK: { label: "Rollback", Icon: Undo2 },
+  RECOVERY: { label: "Auto-recovery", Icon: HeartPulse },
 };
 
 export function TriggerIcon({ trigger, className = "size-3.5" }: { trigger: DeploymentTrigger; className?: string }) {

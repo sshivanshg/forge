@@ -10,6 +10,11 @@ import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Input";
 import { api, ApiError, errorMessage } from "@/lib/api";
 
+/** Optional public demo account, shown on the login page (baked in at build time). */
+const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "";
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "";
+const HAS_DEMO = DEMO_EMAIL !== "" && DEMO_PASSWORD !== "";
+
 /** Only follow same-origin, path-only redirects. */
 function safeNext(next: string | null): string {
   return next && next.startsWith("/") && !next.startsWith("//") ? next : "/projects";
@@ -25,6 +30,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [demoSubmitting, setDemoSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -55,6 +61,18 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         err instanceof ApiError && err.status === 401 ? "Incorrect email or password." : errorMessage(err),
       );
       setSubmitting(false);
+    }
+  }
+
+  async function signInAsDemo() {
+    setError(null);
+    setDemoSubmitting(true);
+    try {
+      await login(DEMO_EMAIL, DEMO_PASSWORD);
+      router.replace(next);
+    } catch (err) {
+      setError(errorMessage(err));
+      setDemoSubmitting(false);
     }
   }
 
@@ -117,6 +135,22 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           {isRegister ? "Create account" : "Sign in"}
         </Button>
       </form>
+
+      {!isRegister && HAS_DEMO && (
+        <div className="mt-5">
+          <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-zinc-600">
+            <span className="h-px flex-1 bg-white/[0.06]" />
+            or
+            <span className="h-px flex-1 bg-white/[0.06]" />
+          </div>
+          <Button type="button" className="mt-5 w-full" onClick={signInAsDemo} loading={demoSubmitting}>
+            Try the demo account
+          </Button>
+          <p className="mt-2.5 text-center font-mono text-[11px] text-zinc-500">
+            {DEMO_EMAIL} · {DEMO_PASSWORD}
+          </p>
+        </div>
+      )}
 
       <p className="mt-6 text-center text-[13px] text-zinc-500">
         {isRegister ? "Already have an account? " : "New to Forge? "}

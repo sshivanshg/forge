@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,6 +21,7 @@ import com.forge.build.BuildRequest;
 import com.forge.build.BuildResult;
 import com.forge.build.BuildService;
 import com.forge.build.BuildType;
+import com.forge.deployment.application.LiveInstanceWatcher;
 import com.forge.health.HealthProbe;
 import com.forge.health.HealthResult;
 import com.forge.jobs.Job;
@@ -60,6 +62,7 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
   @Autowired PostgresJobQueue queue;
   @Autowired JobRunner runner;
   @Autowired LogSink logSink;
+  @Autowired LiveInstanceWatcher watcher;
 
   private final AtomicInteger containers = new AtomicInteger();
   private String token;
@@ -208,6 +211,25 @@ class DeploymentPipelineIntegrationTest extends AbstractIntegrationTest {
         .isEqualTo(getDeployment(first).get("imageRef").asText());
     assertThat(result.get("timeline").findValuesAsText("to")).doesNotContain("BUILDING");
     verify(builds, org.mockito.Mockito.times(2)).build(any());
+  }
+
+  @Test
+  void liveAppWhoseContainerVanishedIsRedeployedFromItsImageOnce() throws Exception {
+    String live = deploy().get("id").asText();
+    drainJobs();
+    when(runtime.isRunning("container-1")).thenReturn(false);
+
+    assertThat(watcher.checkLiveInstances()).isEqualTo(1);
+    assertThat(watcher.checkLiveInstances()).isZero(); // already queued: never twice
+    drainJobs();
+
+    JsonNode recovered = getDeployment(project().get("liveDeploymentId").asText());
+    assertThat(recovered.get("trigger").asText()).isEqualTo("RECOVERY");
+    assertThat(recovered.get("status").asText()).isEqualTo("LIVE");
+    assertThat(recovered.get("rollbackOfId").asText()).isEqualTo(live);
+    assertThat(getDeployment(live).get("status").asText()).isEqualTo("SUPERSEDED");
+    verify(builds, times(1)).build(any()); // the image was reused, not rebuilt
+    assertThat(watcher.checkLiveInstances()).isZero();
   }
 
   @Test

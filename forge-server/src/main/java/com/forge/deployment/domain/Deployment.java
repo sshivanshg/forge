@@ -120,29 +120,34 @@ public class Deployment extends AbstractAggregateRoot<Deployment> {
       DeploymentTrigger trigger,
       UUID triggeredBy,
       Instant now) {
-    if (trigger == DeploymentTrigger.ROLLBACK) {
-      throw new IllegalArgumentException("Use rollbackTo() for rollbacks");
+    if (trigger == DeploymentTrigger.ROLLBACK || trigger == DeploymentTrigger.RECOVERY) {
+      throw new IllegalArgumentException("Use rollbackTo() or recoveryOf() to reuse an image");
     }
     return new Deployment(projectId, commitSha, commitMessage, trigger, triggeredBy, now);
   }
 
   /** Factory method for a rollback: reuses the target's image, so no rebuild is needed. */
   public static Deployment rollbackTo(Deployment target, UUID triggeredBy, Instant now) {
+    return redeploy(target, DeploymentTrigger.ROLLBACK, triggeredBy, now);
+  }
+
+  /** Factory method for self-healing: the live version's container is gone, so start it again. */
+  public static Deployment recoveryOf(Deployment live, Instant now) {
+    return redeploy(live, DeploymentTrigger.RECOVERY, null, now);
+  }
+
+  private static Deployment redeploy(
+      Deployment target, DeploymentTrigger trigger, UUID triggeredBy, Instant now) {
     if (!target.canBeRolledBackTo()) {
       throw new ValidationException(
-          "Only deployments that went live and still have an image can be rolled back to");
+          "Only deployments that went live and still have an image can be redeployed");
     }
-    Deployment rollback =
+    Deployment redeploy =
         new Deployment(
-            target.projectId,
-            target.commitSha,
-            target.commitMessage,
-            DeploymentTrigger.ROLLBACK,
-            triggeredBy,
-            now);
-    rollback.imageRef = target.imageRef;
-    rollback.rollbackOfId = target.id;
-    return rollback;
+            target.projectId, target.commitSha, target.commitMessage, trigger, triggeredBy, now);
+    redeploy.imageRef = target.imageRef;
+    redeploy.rollbackOfId = target.id;
+    return redeploy;
   }
 
   public void startBuild(Instant now) {

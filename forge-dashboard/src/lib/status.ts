@@ -53,6 +53,8 @@ export function deploymentTitle(d: Pick<Deployment, "commitMessage" | "trigger" 
   switch (d.trigger) {
     case "ROLLBACK":
       return `Rollback to ${sha}`;
+    case "RECOVERY":
+      return `Auto-recovery of ${sha}`;
     case "WEBHOOK":
       return `Push ${sha}`;
     default:

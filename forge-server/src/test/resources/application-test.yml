@@ -19,6 +19,7 @@ forge:
     anthropic-api-key: ""
   deploy:
     drain-delay: 0s
+    self-heal: false # tests call LiveInstanceWatcher directly
 spring:
   main:
     banner-mode: off

@@ -34,9 +34,9 @@ Use the sequence diagrams in [04 §1](04-interactions.md#1-sequence-deploy-a-com
 | 5 | Design patterns | [03 §7](03-class-design.md#7-design-patterns-with-justification) | `DetectorChain`, `ContainerSpec.builder()`, `DeploymentStatus` |
 | 6 | Sequence and activity diagrams | [04](04-interactions.md) | — |
 | 7 | API and layer separation | [05](05-api-spec.md), [02 §3](02-architecture.md#3-modules-modular-monolith) | `DeploymentController` → `DeploymentService` |
-| 8 | DB schema mapped from classes | [06](06-database-schema.md) | `db/migration/V1`–`V7` |
+| 8 | DB schema mapped from classes | [06](06-database-schema.md) | `db/migration/V1`–`V8` |
 | 9 | Errors, validation, edge cases, concurrency | [07](07-error-handling.md), [03 §8](03-class-design.md#8-concurrency-design) | `GlobalExceptionHandler`, `PostgresJobQueue.claim` |
-| 10 | Working implementation | Live demo (section 6) | 110 tests green, `ArchitectureTest` |
+| 10 | Working implementation | Live demo (section 6) | 114 tests green, `ArchitectureTest` |
 
 ## 4. The modules in two sentences each
 
@@ -94,6 +94,12 @@ Yes. Generated Dockerfiles run the app as a non-root user. On Apple container ev
 
 **Why Apple container instead of Docker?**
 Three reasons. Each app runs in its own lightweight VM, which isolates apps more strongly than containers sharing one kernel. It is native on the Mac we demo on, with no Docker Desktop (which had crashed under memory pressure and corrupted its image store, see [D-004](DECISIONS.md)). And the swap proved the design: the pipeline depends only on the `ImageBuilder` and `RuntimeProvider` interfaces, so we added two adapters (`AppleContainerImageBuilder`, `AppleContainerRuntimeProvider`) and changed the wiring, with **zero changes** to the `deployment` module. That is Dependency Inversion and Liskov Substitution in practice. The one new piece is routing: Apple container has no Docker labels for Traefik to read, so Forge serves Traefik a routing table at `/internal/routing`. Docker stays as the alternative adapter (`forge.engine=docker`) for Linux and CI. Trade-offs: macOS 26+ on Apple silicon only, no exit codes, at least 200 MiB per container.
+
+**What happens if a live app's container dies or the machine reboots?**
+Forge heals it. `LiveInstanceWatcher` checks every 30 s that each LIVE deployment's container still runs; if one is gone it queues a `RECOVERY` deployment of the **same image**, which goes through the normal blue-green rollout and health check. Measured: a deleted container was serving again in 12 s, with no rebuild. It recovers each live deployment at most once (a broken image can't loop), and an engine error never counts as "gone". Recovery reuses the rollback path (`Deployment.recoveryOf` next to `rollbackTo`), so it needed no new pipeline code ([D-005](DECISIONS.md)).
+
+**Why does a wrong port fail in seconds, not after the 90 s timeout?**
+During the health check `ListeningPortWatch` reads the new container's output. If the app announces only ports other than the project's (e.g. "listening on port 3000" when Forge routes to 8080), waiting can't help, so the check ends at once with that reason. The agent still produces its `PORT_MISMATCH` diagnosis. Wrong-port failures went from 102 s to 15 s.
 
 **How would it scale?**
 The API is stateless, so add instances behind a load balancer; `SKIP LOCKED` already lets many workers share one queue. Next: move SSE fan-out to Redis, extract the workers, move logs to object storage, and add a Kubernetes `RuntimeProvider` next to the Apple container and Docker ones. All are listed in [10](10-roadmap.md#future-work-presented-not-built).

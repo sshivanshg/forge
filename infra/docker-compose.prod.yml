@@ -64,6 +64,9 @@ services:
       args:
         # Inlined into the browser bundle at build time: rebuild after changing it
         NEXT_PUBLIC_API_URL: ${FORGE_PUBLIC_API_URL:?set FORGE_PUBLIC_API_URL in .env}
+        # One-click demo login on the sign-in page; leave both empty to hide it
+        NEXT_PUBLIC_DEMO_EMAIL: ${FORGE_DEMO_EMAIL:-}
+        NEXT_PUBLIC_DEMO_PASSWORD: ${FORGE_DEMO_PASSWORD:-}
     restart: unless-stopped
     ports:
       - "3000:3000"

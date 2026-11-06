@@ -108,14 +108,13 @@ function GithubCard() {
             </Button>
           </div>
         ) : !c.oauthConfigured ? (
-          <Alert tone="warning" title="GitHub OAuth isn't configured on this server">
-            <p>
-              Set <code className="font-mono">FORGE_GITHUB_CLIENT_ID</code> and{" "}
-              <code className="font-mono">FORGE_GITHUB_CLIENT_SECRET</code> on forge-server (from a GitHub OAuth App whose
-              callback URL points at <code className="font-mono">/api/v1/github/callback</code>) and restart it.
-            </p>
-            <p className="mt-2">Public repositories still work — enter them as owner/name when creating a project.</p>
-          </Alert>
+          <p
+            className="max-w-md text-[13px] text-zinc-400"
+            title="Set FORGE_GITHUB_CLIENT_ID and FORGE_GITHUB_CLIENT_SECRET on forge-server to enable it."
+          >
+            GitHub sign-in isn&apos;t enabled on this server. Public repositories work without it: enter them as
+            owner/name when you create a project.
+          </p>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-4">
             <p className="max-w-md text-[13px] text-zinc-400">
