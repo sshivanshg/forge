@@ -6,7 +6,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Input";
 import { api, ApiError, errorMessage } from "@/lib/api";
 
@@ -17,7 +16,7 @@ const HAS_DEMO = DEMO_EMAIL !== "" && DEMO_PASSWORD !== "";
 
 /** Only follow same-origin, path-only redirects. */
 function safeNext(next: string | null): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/projects";
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/overview";
 }
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
@@ -77,15 +76,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   }
 
   return (
-    <Card className="bg-zinc-900/70 p-6 shadow-2xl shadow-black/40 backdrop-blur">
-      <h1 className="text-lg font-semibold tracking-tight text-zinc-50">
-        {isRegister ? "Create your account" : "Welcome back"}
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
+        {isRegister ? "Create your account" : "Sign in to Forge"}
       </h1>
-      <p className="mt-1 text-[13px] text-zinc-500">
-        {isRegister ? "Deploy your first app in a couple of minutes." : "Sign in to your Forge dashboard."}
+      <p className="mt-1.5 text-sm text-zinc-500">
+        {isRegister ? "Deploy your first app in a couple of minutes." : "Your projects, deploys and agent diagnoses."}
       </p>
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
+      <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
         {error && <Alert>{error}</Alert>}
 
         {isRegister && (
@@ -161,6 +160,6 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           {isRegister ? "Sign in" : "Create an account"}
         </Link>
       </p>
-    </Card>
+    </div>
   );
 }
