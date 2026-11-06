@@ -139,7 +139,7 @@ function TrafficPanel({ project }: { project: Project }) {
       aside={
         <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
           {t.phase === "ok" && <span className="size-1.5 animate-pulse rounded-full bg-cyan-400" aria-hidden />}
-          {t.phase === "ok" ? "2s · last 2 min" : t.phase === "loading" ? "connecting" : ""}
+          {!project.liveDeploymentId ? "" : t.phase === "ok" ? "2s · last 2 min" : t.phase === "loading" ? "connecting" : ""}
         </span>
       }
     >
