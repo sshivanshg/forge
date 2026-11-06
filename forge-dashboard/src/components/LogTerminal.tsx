@@ -15,7 +15,7 @@ export interface TerminalLine {
 
 const SOURCE_STYLE: Record<LogSource, string> = {
   BUILD: "text-sky-400",
-  DEPLOY: "text-violet-400",
+  DEPLOY: "text-brand-400",
   RUNTIME: "text-emerald-400",
   SYSTEM: "text-amber-400",
 };
@@ -30,14 +30,14 @@ const Row = memo(function Row({ l }: { l: TerminalLine }) {
     <div
       className={cx(
         "group flex gap-3 px-4 py-px hover:bg-white/[0.03]",
-        agent && "my-1 border-l-2 border-violet-500 bg-violet-500/[0.09] py-1 hover:bg-violet-500/[0.12]",
+        agent && "my-1 border-l-2 border-brand-500 bg-brand-500/[0.09] py-1 hover:bg-brand-500/[0.12]",
       )}
     >
       {l.ts && <span className="hidden shrink-0 text-zinc-600 select-none sm:inline">{clockTime(l.ts)}</span>}
       {l.source && (
         <span className={cx("w-14 shrink-0 select-none", SOURCE_STYLE[l.source])}>{l.source}</span>
       )}
-      <span className={cx("min-w-0 flex-1 break-words whitespace-pre-wrap", agent ? "font-medium text-violet-200" : "text-zinc-300")}>
+      <span className={cx("min-w-0 flex-1 break-words whitespace-pre-wrap", agent ? "font-medium text-brand-200" : "text-zinc-300")}>
         {stripAnsi(l.line) || " "}
       </span>
     </div>
@@ -104,7 +104,7 @@ export function LogTerminal({ lines, title, status, empty, className }: LogTermi
         <button
           type="button"
           onClick={() => setFollow(true)}
-          className="toast-in absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-zinc-800/95 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-xl shadow-black/50 hover:bg-zinc-700 focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none"
+          className="toast-in absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-zinc-800/95 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-xl shadow-black/50 hover:bg-zinc-700 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
         >
           <ArrowDown className="size-3.5" aria-hidden />
           Jump to bottom

@@ -95,19 +95,19 @@ export function AgentInsightCard({ deploymentId }: { deploymentId: string }) {
     <section
       aria-labelledby="agent-heading"
       aria-busy={phase === "thinking"}
-      className="relative overflow-hidden rounded-xl border border-violet-500/25 bg-gradient-to-b from-violet-500/[0.08] via-zinc-900/60 to-zinc-900/40"
+      className="relative overflow-hidden rounded-xl border border-brand-500/25 bg-gradient-to-b from-brand-500/[0.08] via-zinc-900/60 to-zinc-900/40"
     >
-      <div className="pointer-events-none absolute -top-24 -right-24 size-56 rounded-full bg-violet-600/20 blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute -top-24 -right-24 size-56 rounded-full bg-brand-600/20 blur-3xl" aria-hidden />
 
-      <header className="relative flex flex-wrap items-center justify-between gap-3 border-b border-violet-500/15 px-5 py-4">
+      <header className="relative flex flex-wrap items-center justify-between gap-3 border-b border-brand-500/15 px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300 ring-1 ring-violet-400/30">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-brand-500/15 text-brand-300 ring-1 ring-brand-400/30">
             <Bot className="size-4" aria-hidden />
           </span>
           <div>
             <h2 id="agent-heading" className="flex items-center gap-1.5 text-sm font-semibold text-zinc-50">
               Forge Agent diagnosis
-              <Sparkles className="size-3.5 text-violet-400" aria-hidden />
+              <Sparkles className="size-3.5 text-brand-400" aria-hidden />
             </h2>
             <p className="text-xs text-zinc-500">
               {phase === "thinking"
@@ -120,7 +120,7 @@ export function AgentInsightCard({ deploymentId }: { deploymentId: string }) {
         </div>
         {insight && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-violet-400/30 bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-200">
+            <span className="rounded-full border border-brand-400/30 bg-brand-500/10 px-2 py-0.5 text-xs font-medium text-brand-200">
               {humanize(insight.category)}
             </span>
             <ConfidenceMeter level={insight.confidence} />
@@ -131,17 +131,17 @@ export function AgentInsightCard({ deploymentId }: { deploymentId: string }) {
       <div className="relative px-5 py-5">
         {phase === "thinking" && (
           <div className="space-y-3" role="status">
-            <p className="flex items-center gap-2 text-[13px] text-violet-200">
+            <p className="flex items-center gap-2 text-[13px] text-brand-200">
               <span className="flex gap-1" aria-hidden>
-                <span className="size-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:-0.3s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:-0.15s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-violet-400" />
+                <span className="size-1.5 animate-bounce rounded-full bg-brand-400 [animation-delay:-0.3s]" />
+                <span className="size-1.5 animate-bounce rounded-full bg-brand-400 [animation-delay:-0.15s]" />
+                <span className="size-1.5 animate-bounce rounded-full bg-brand-400" />
               </span>
               Thinking…
             </p>
-            <Skeleton className="h-4 w-11/12 bg-violet-400/10" />
-            <Skeleton className="h-4 w-4/5 bg-violet-400/10" />
-            <Skeleton className="mt-4 h-16 w-full bg-violet-400/10" />
+            <Skeleton className="h-4 w-11/12 bg-brand-400/10" />
+            <Skeleton className="h-4 w-4/5 bg-brand-400/10" />
+            <Skeleton className="mt-4 h-16 w-full bg-brand-400/10" />
           </div>
         )}
 
@@ -177,7 +177,7 @@ export function AgentInsightCard({ deploymentId }: { deploymentId: string }) {
                   aria-expanded={showEvidence}
                   aria-controls="agent-evidence"
                   onClick={() => setShowEvidence((s) => !s)}
-                  className="inline-flex items-center gap-1 rounded text-[13px] font-medium text-zinc-400 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none"
+                  className="inline-flex items-center gap-1 rounded text-[13px] font-medium text-zinc-400 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
                 >
                   <ChevronRight className={cx("size-4 transition-transform", showEvidence && "rotate-90")} aria-hidden />
                   Evidence ({insight.evidence.length} {insight.evidence.length === 1 ? "line" : "lines"})

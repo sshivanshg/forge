@@ -3,11 +3,31 @@
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Brand: molten ember. Used for primary actions, focus, live accents. */
+  --color-brand-50: #fff6ed;
+  --color-brand-100: #ffead4;
+  --color-brand-200: #ffd0a8;
+  --color-brand-300: #ffae70;
+  --color-brand-400: #ff8a3d;
+  --color-brand-500: #f76b15;
+  --color-brand-600: #dc520b;
+  --color-brand-700: #b63d0c;
+  --color-brand-800: #913212;
+  --color-brand-900: #752b12;
+  --color-brand-950: #3f1307;
+
+  /* Surfaces: graphite, slightly warm. */
+  --color-ink-950: #0a0a0b;
+  --color-ink-900: #111113;
+  --color-ink-850: #161618;
+  --color-ink-800: #1c1c1f;
+  --color-ink-700: #2a2a2e;
 }
 
 :root {
   color-scheme: dark;
-  --background: #09090b;
+  --background: #0a0a0b;
   --foreground: #e4e4e7;
 }
 
@@ -23,13 +43,13 @@ body {
 }
 
 ::selection {
-  background: rgb(139 92 246 / 0.35);
+  background: rgb(247 107 21 / 0.35);
 }
 
 /* Faint grid + glow behind the auth cards. */
 .auth-backdrop {
   background-image:
-    radial-gradient(ellipse 60% 50% at 50% 0%, rgb(124 58 237 / 0.16), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgb(247 107 21 / 0.14), transparent 70%),
     linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px);
   background-size: 100% 100%, 32px 32px, 32px 32px;
@@ -58,7 +78,7 @@ body {
 @keyframes step-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 var(--glow, rgb(139 92 246 / 0.45));
+    box-shadow: 0 0 0 0 var(--glow, rgb(247 107 21 / 0.45));
   }
   50% {
     box-shadow: 0 0 0 6px transparent;
@@ -89,4 +109,19 @@ body {
   .animate-spin {
     animation: none !important;
   }
+}
+
+/* Dotted canvas used behind hero sections and empty consoles. */
+.dot-grid {
+  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* Ember glow at the top edge of a surface. */
+.ember-edge {
+  background-image: radial-gradient(ellipse 70% 120% at 50% -40%, rgb(247 107 21 / 0.18), transparent 60%);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

@@ -224,7 +224,7 @@ export function EnvironmentTab({ project, onDeploy, deploying }: Props) {
                 setMode((m) => (m === "single" ? "bulk" : "single"));
                 setFormErrors({});
               }}
-              className="inline-flex items-center gap-1.5 rounded text-xs text-zinc-500 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none"
+              className="inline-flex items-center gap-1.5 rounded text-xs text-zinc-500 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
             >
               <FileText className="size-3.5" aria-hidden />
               {mode === "single" ? "Paste a .env file" : "Add one at a time"}

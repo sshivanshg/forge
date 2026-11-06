@@ -249,7 +249,7 @@ export default function DeploymentPage() {
               </span>
             )}
             {d.rollbackOfId && (
-              <Link href={`/deployments/${d.rollbackOfId}`} className="inline-flex items-center gap-1 text-violet-400 hover:text-violet-300">
+              <Link href={`/deployments/${d.rollbackOfId}`} className="inline-flex items-center gap-1 text-brand-400 hover:text-brand-300">
                 <Undo2 className="size-3.5" aria-hidden /> {d.trigger === "RECOVERY" ? "Recovery of" : "Rollback of"} {d.rollbackOfId.slice(0, 8)}
               </Link>
             )}

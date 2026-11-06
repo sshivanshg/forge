@@ -156,7 +156,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         {isRegister ? "Already have an account? " : "New to Forge? "}
         <Link
           href={isRegister ? "/login" : "/register"}
-          className="font-medium text-violet-400 hover:text-violet-300 focus-visible:underline focus-visible:outline-none"
+          className="font-medium text-brand-400 hover:text-brand-300 focus-visible:underline focus-visible:outline-none"
         >
           {isRegister ? "Sign in" : "Create an account"}
         </Link>

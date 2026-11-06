@@ -24,7 +24,7 @@ const ToastContext = createContext<ToastApi | null>(null);
 const icons = {
   success: <CheckCircle2 className="size-4 text-emerald-400" aria-hidden />,
   error: <XCircle className="size-4 text-red-400" aria-hidden />,
-  info: <Info className="size-4 text-violet-400" aria-hidden />,
+  info: <Info className="size-4 text-brand-400" aria-hidden />,
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -77,7 +77,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => dismiss(t.id)}
-              className="rounded p-0.5 text-zinc-500 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none"
+              className="rounded p-0.5 text-zinc-500 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
               aria-label="Dismiss notification"
             >
               <X className="size-3.5" />

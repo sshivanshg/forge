@@ -5,7 +5,7 @@ export function LogoMark({ className }: { className?: string }) {
   return (
     <span
       className={cx(
-        "inline-flex items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-900/40 ring-1 ring-white/20",
+        "inline-flex items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-700 shadow-lg shadow-brand-950/60 ring-1 ring-white/20",
         className ?? "size-7",
       )}
     >

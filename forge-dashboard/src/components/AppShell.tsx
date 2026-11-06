@@ -52,7 +52,7 @@ function UserMenu() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 text-zinc-300 transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none"
+        className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 text-zinc-300 transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
       >
         <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-zinc-600 to-zinc-800 text-[11px] font-semibold text-zinc-100 ring-1 ring-white/10">
           {initials(user.displayName)}
@@ -102,7 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-zinc-950/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
-          <Link href="/projects" className="rounded-md focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none" aria-label="Forge home">
+          <Link href="/projects" className="rounded-md focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none" aria-label="Forge home">
             <Logo />
           </Link>
           <nav aria-label="Main" className="flex items-center gap-1">
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none",
+                    "rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none",
                     active ? "bg-white/[0.06] text-zinc-50" : "text-zinc-400 hover:text-zinc-100",
                   )}
                 >

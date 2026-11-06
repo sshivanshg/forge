@@ -93,7 +93,7 @@ export function DeploymentsTab({ project, onDeploy, deploying }: Props) {
               <div className="min-w-0 flex-1">
                 <Link
                   href={`/deployments/${d.id}`}
-                  className="block truncate text-[13px] font-medium text-zinc-100 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-violet-500/70 focus-visible:after:ring-inset"
+                  className="block truncate text-[13px] font-medium text-zinc-100 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand-500/70 focus-visible:after:ring-inset"
                 >
                   {deploymentTitle(d)}
                 </Link>

@@ -52,13 +52,13 @@ export function Tabs<T extends string>({ tabs, value, onChange, label }: TabsPro
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cx(
               "relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-[13px] font-medium transition-colors",
-              "focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none",
+              "focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none",
               selected ? "text-zinc-50" : "text-zinc-500 hover:text-zinc-200",
             )}
           >
             {tab.icon}
             {tab.label}
-            {selected && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-violet-500" />}
+            {selected && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand-500" />}
           </button>
         );
       })}

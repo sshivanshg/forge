@@ -54,7 +54,7 @@ function ProjectCard({ project, latest }: { project: Project; latest: Deployment
           <div className="min-w-0">
             <Link
               href={`/projects/${project.id}`}
-              className="block truncate text-[15px] font-semibold text-zinc-100 after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-violet-500/70"
+              className="block truncate text-[15px] font-semibold text-zinc-100 after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand-500/70"
             >
               {project.name}
             </Link>

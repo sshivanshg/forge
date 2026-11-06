@@ -21,7 +21,7 @@ const STEP_LABEL: Record<PipelineStep, string> = {
 const CURRENT_STYLE: Record<PipelineStep, { ring: string; text: string; glow: string }> = {
   QUEUED: { ring: "border-zinc-400 bg-zinc-400/10", text: "text-zinc-200", glow: "rgb(161 161 170 / 0.4)" },
   BUILDING: { ring: "border-sky-400 bg-sky-500/15", text: "text-sky-300", glow: "rgb(56 189 248 / 0.45)" },
-  DEPLOYING: { ring: "border-violet-400 bg-violet-500/15", text: "text-violet-300", glow: "rgb(167 139 250 / 0.45)" },
+  DEPLOYING: { ring: "border-brand-400 bg-brand-500/15", text: "text-brand-300", glow: "rgb(167 139 250 / 0.45)" },
   HEALTH_CHECKING: { ring: "border-amber-400 bg-amber-500/15", text: "text-amber-300", glow: "rgb(251 191 36 / 0.45)" },
   CANARY: { ring: "border-cyan-400 bg-cyan-500/15", text: "text-cyan-300", glow: "rgb(34 211 238 / 0.45)" },
   LIVE: { ring: "border-emerald-400 bg-emerald-500/15", text: "text-emerald-300", glow: "rgb(52 211 153 / 0.45)" },
