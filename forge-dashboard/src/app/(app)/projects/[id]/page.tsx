@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowLeft, ArrowUpRight, GitBranch, History, KeyRound, Rocket, Settings, SquareTerminal } from "lucide-react";
-import Link from "next/link";
+import { ArrowUpRight, Copy, GitBranch, History, KeyRound, LayoutGrid, Layers, Rocket, Settings, Split, SquareTerminal } from "lucide-react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { PageHeader } from "@/components/PageHeader";
+import { OverviewTab } from "@/components/project/OverviewTab";
+import { useBreadcrumbs } from "@/components/shell/Breadcrumbs";
 import { DeploymentsTab } from "@/components/project/DeploymentsTab";
 import { EnvironmentTab } from "@/components/project/EnvironmentTab";
 import { RuntimeLogsTab } from "@/components/project/RuntimeLogsTab";
@@ -18,9 +18,10 @@ import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { useQuery } from "@/lib/hooks";
 
-type TabId = "deployments" | "environment" | "logs" | "settings";
+type TabId = "overview" | "deployments" | "environment" | "logs" | "settings";
 
 const TABS: TabDef<TabId>[] = [
+  { id: "overview", label: "Overview", icon: <LayoutGrid className="size-4" aria-hidden /> },
   { id: "deployments", label: "Deployments", icon: <History className="size-4" aria-hidden /> },
   { id: "environment", label: "Environment", icon: <KeyRound className="size-4" aria-hidden /> },
   { id: "logs", label: "Runtime logs", icon: <SquareTerminal className="size-4" aria-hidden /> },
@@ -38,7 +39,7 @@ function ProjectView() {
   const params = useSearchParams();
   const toast = useToast();
   const tabParam = params.get("tab");
-  const tab: TabId = isTab(tabParam) ? tabParam : "deployments";
+  const tab: TabId = isTab(tabParam) ? tabParam : "overview";
 
   const project = useQuery(`project:${id}`, () => api.projects.get(id));
   const [deploying, setDeploying] = useState(false);
@@ -55,10 +56,11 @@ function ProjectView() {
   }
 
   const setTab = (next: TabId) => {
-    router.replace(next === "deployments" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
+    router.replace(next === "overview" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
   };
 
   const p = project.data;
+  useBreadcrumbs([{ label: "Projects", href: "/projects" }, { label: p?.name ?? "…" }], `project:${p?.name}`);
 
   if (project.error && !p) {
     return (
@@ -81,54 +83,78 @@ function ProjectView() {
   }
 
   const isLive = !!p.liveDeploymentId;
+  const host = p.liveUrl.replace(/^https?:\/\//, "");
 
   return (
     <>
-      <PageHeader
-        eyebrow={
-          <Link href="/projects" className="inline-flex items-center gap-1 text-[13px] text-zinc-500 hover:text-zinc-200">
-            <ArrowLeft className="size-3.5" aria-hidden /> Projects
-          </Link>
-        }
-        title={p.name}
-        description={
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <a
-              href={`${p.repoUrl}/tree/${encodeURIComponent(p.branch)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-100"
-            >
-              <GithubIcon className="size-3.5" />
-              {p.repoOwner}/{p.repoName}
-              <GitBranch className="ml-1 size-3.5 text-zinc-500" aria-hidden />
-              <span className="font-mono text-xs">{p.branch}</span>
-            </a>
-            {isLive ? (
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-4">
+          <div className="hidden size-12 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-ink-800 font-mono text-lg font-semibold text-zinc-200 sm:flex">
+            {p.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-50 sm:text-[22px]">{p.name}</h1>
+              {isLive ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                  <span className="size-1.5 rounded-full bg-emerald-400" aria-hidden /> Live
+                </span>
+              ) : (
+                <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-zinc-500">Not live</span>
+              )}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-zinc-400">
+              {isLive ? (
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <a href={p.liveUrl} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 font-mono text-xs text-emerald-400 hover:text-emerald-300 hover:underline">
+                    <span className="truncate">{host}</span>
+                    <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
+                  </a>
+                  <button
+                    type="button"
+                    aria-label="Copy live URL"
+                    onClick={() => navigator.clipboard?.writeText(p.liveUrl).then(() => toast.success("Copied live URL"))}
+                    className="rounded p-1 text-zinc-600 hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
+                  >
+                    <Copy className="size-3" />
+                  </button>
+                </span>
+              ) : (
+                <span className="font-mono text-xs text-zinc-600">{host}</span>
+              )}
               <a
-                href={p.liveUrl}
+                href={`${p.repoUrl}/tree/${encodeURIComponent(p.branch)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 hover:underline"
+                className="inline-flex items-center gap-1.5 hover:text-zinc-100"
               >
-                {p.liveUrl.replace(/^https?:\/\//, "")}
-                <ArrowUpRight className="size-3.5" aria-hidden />
+                <GithubIcon className="size-3.5" />
+                {p.repoOwner}/{p.repoName}
               </a>
-            ) : (
-              <span className="text-zinc-600">Not live yet</span>
-            )}
-          </span>
-        }
-        actions={
-          <Button variant="primary" onClick={deploy} loading={deploying} icon={<Rocket className="size-4" aria-hidden />}>
-            Deploy
-          </Button>
-        }
-      />
+              <span className="inline-flex items-center gap-1 font-mono text-xs">
+                <GitBranch className="size-3.5 text-zinc-500" aria-hidden />
+                {p.branch}
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs">
+                <Layers className="size-3.5 text-zinc-500" aria-hidden />
+                <span className="font-mono">{p.replicas}×</span>
+              </span>
+              <span className={`inline-flex items-center gap-1 text-xs ${p.rollout === "CANARY" ? "text-cyan-300" : ""}`}>
+                <Split className="size-3.5" aria-hidden />
+                {p.rollout === "CANARY" ? "Canary" : "Blue-green"}
+              </span>
+            </div>
+          </div>
+        </div>
+        <Button variant="primary" onClick={deploy} loading={deploying} icon={<Rocket className="size-4" aria-hidden />}>
+          Deploy
+        </Button>
+      </div>
 
       <Tabs tabs={TABS} value={tab} onChange={setTab} label="Project sections" />
 
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="pt-6">
+        {tab === "overview" && <OverviewTab key={p.id} project={p} />}
         {tab === "deployments" && <DeploymentsTab project={p} onDeploy={deploy} deploying={deploying} />}
         {tab === "environment" && <EnvironmentTab project={p} onDeploy={deploy} deploying={deploying} />}
         {tab === "logs" && <RuntimeLogsTab key={p.id} project={p} />}

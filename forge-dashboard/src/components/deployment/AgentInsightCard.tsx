@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, ChevronRight, RotateCw, Sparkles, Wrench } from "lucide-react";
+import { Bot, RotateCw, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -14,13 +14,11 @@ const MAX_ATTEMPTS = 15; // ~30 s
 
 type Phase = "thinking" | "ready" | "timeout" | "error";
 
-const CONFIDENCE_STYLE: Record<Confidence, string> = {
-  HIGH: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  MEDIUM: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-  LOW: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300",
+const CONFIDENCE: Record<Confidence, { pct: number; bar: string; text: string }> = {
+  HIGH: { pct: 90, bar: "bg-emerald-400", text: "text-emerald-300" },
+  MEDIUM: { pct: 60, bar: "bg-amber-400", text: "text-amber-300" },
+  LOW: { pct: 30, bar: "bg-zinc-400", text: "text-zinc-300" },
 };
-
-const CONFIDENCE_BARS: Record<Confidence, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 
 /** Polls the agent's diagnosis of a failed deployment; it appears a few seconds after failure. */
 function useInsight(deploymentId: string) {
@@ -74,61 +72,62 @@ function useInsight(deploymentId: string) {
 }
 
 function ConfidenceMeter({ level }: { level: Confidence }) {
-  const bars = CONFIDENCE_BARS[level];
+  const c = CONFIDENCE[level];
   return (
-    <span className={cx("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium", CONFIDENCE_STYLE[level])}>
-      <span className="flex items-end gap-0.5" aria-hidden>
-        {[1, 2, 3].map((b) => (
-          <span key={b} className={cx("w-0.5 rounded-full bg-current", b <= bars ? "opacity-100" : "opacity-25")} style={{ height: 4 + b * 2 }} />
+    <div className="min-w-[9rem]">
+      <div className="flex items-baseline justify-between text-[11px]">
+        <span className="font-medium tracking-wide text-zinc-500 uppercase">Confidence</span>
+        <span className={cx("font-mono font-medium", c.text)}>{humanize(level)}</span>
+      </div>
+      <div className="mt-1.5 flex gap-[3px]" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={c.pct} aria-label={`${humanize(level)} confidence`}>
+        {Array.from({ length: 10 }, (_, i) => (
+          <span key={i} className={cx("h-1.5 flex-1 rounded-[1px]", i < c.pct / 10 ? c.bar : "bg-white/[0.08]")} />
         ))}
-      </span>
-      {humanize(level)} confidence
-    </span>
+      </div>
+    </div>
   );
 }
 
 export function AgentInsightCard({ deploymentId }: { deploymentId: string }) {
   const { insight, phase, message, retry } = useInsight(deploymentId);
-  const [showEvidence, setShowEvidence] = useState(false);
 
   return (
     <section
       aria-labelledby="agent-heading"
       aria-busy={phase === "thinking"}
-      className="relative overflow-hidden rounded-xl border border-brand-500/25 bg-gradient-to-b from-brand-500/[0.08] via-zinc-900/60 to-zinc-900/40"
+      className="ember-edge relative overflow-hidden rounded-lg border border-brand-500/30 bg-ink-900"
     >
-      <div className="pointer-events-none absolute -top-24 -right-24 size-56 rounded-full bg-brand-600/20 blur-3xl" aria-hidden />
-
-      <header className="relative flex flex-wrap items-center justify-between gap-3 border-b border-brand-500/15 px-5 py-4">
+      <div className="absolute inset-y-0 left-0 w-[3px] bg-brand-500" aria-hidden />
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.06] py-3.5 pr-5 pl-6">
         <div className="flex items-center gap-3">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-brand-500/15 text-brand-300 ring-1 ring-brand-400/30">
+          <span className="flex size-8 items-center justify-center rounded-md bg-brand-500/15 text-brand-300 ring-1 ring-brand-400/30">
             <Bot className="size-4" aria-hidden />
           </span>
           <div>
-            <h2 id="agent-heading" className="flex items-center gap-1.5 text-sm font-semibold text-zinc-50">
-              Forge Agent diagnosis
-              <Sparkles className="size-3.5 text-brand-400" aria-hidden />
+            <h2 id="agent-heading" className="text-sm font-semibold text-zinc-50">
+              Forge Agent · diagnosis
             </h2>
             <p className="text-xs text-zinc-500">
               {phase === "thinking"
                 ? "Reading the logs and the failure…"
-                : phase === "ready"
-                  ? "Root cause analysis of this failed deployment"
+                : phase === "ready" && insight
+                  ? <>Root cause analysis · engine <span className="font-mono text-zinc-400">{insight.engine}</span></>
                   : "No diagnosis available"}
             </p>
           </div>
         </div>
         {insight && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-brand-400/30 bg-brand-500/10 px-2 py-0.5 text-xs font-medium text-brand-200">
-              {humanize(insight.category)}
-            </span>
+          <div className="flex flex-wrap items-center gap-5">
+            <div>
+              <p className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Category</p>
+              <p className="mt-0.5 font-mono text-[13px] text-brand-200">{insight.category}</p>
+            </div>
             <ConfidenceMeter level={insight.confidence} />
           </div>
         )}
       </header>
 
-      <div className="relative px-5 py-5">
+      <div className="py-5 pr-5 pl-6">
         {phase === "thinking" && (
           <div className="space-y-3" role="status">
             <p className="flex items-center gap-2 text-[13px] text-brand-200">
@@ -137,7 +136,7 @@ export function AgentInsightCard({ deploymentId }: { deploymentId: string }) {
                 <span className="size-1.5 animate-bounce rounded-full bg-brand-400 [animation-delay:-0.15s]" />
                 <span className="size-1.5 animate-bounce rounded-full bg-brand-400" />
               </span>
-              Thinking…
+              Analysing
             </p>
             <Skeleton className="h-4 w-11/12 bg-brand-400/10" />
             <Skeleton className="h-4 w-4/5 bg-brand-400/10" />
@@ -159,43 +158,37 @@ export function AgentInsightCard({ deploymentId }: { deploymentId: string }) {
         )}
 
         {phase === "ready" && insight && (
-          <div className="space-y-5">
-            <p className="text-[15px] leading-relaxed text-zinc-100">{insight.summary}</p>
-
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
-              <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold tracking-wide text-emerald-300 uppercase">
-                <Wrench className="size-3.5" aria-hidden />
-                Suggested fix
-              </p>
-              <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-zinc-200">{insight.suggestedFix}</p>
-            </div>
-
-            {insight.evidence.length > 0 && (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="space-y-4">
               <div>
-                <button
-                  type="button"
-                  aria-expanded={showEvidence}
-                  aria-controls="agent-evidence"
-                  onClick={() => setShowEvidence((s) => !s)}
-                  className="inline-flex items-center gap-1 rounded text-[13px] font-medium text-zinc-400 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
-                >
-                  <ChevronRight className={cx("size-4 transition-transform", showEvidence && "rotate-90")} aria-hidden />
-                  Evidence ({insight.evidence.length} {insight.evidence.length === 1 ? "line" : "lines"})
-                </button>
-                {showEvidence && (
-                  <pre
-                    id="agent-evidence"
-                    className="scrollbar-thin mt-2 max-h-64 overflow-auto rounded-lg border border-white/[0.06] bg-[#0b0b0e] p-3 font-mono text-xs leading-relaxed text-zinc-300"
-                  >
-                    {insight.evidence.join("\n")}
-                  </pre>
-                )}
+                <p className="mb-1.5 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">What happened</p>
+                <p className="text-[15px] leading-relaxed text-zinc-100">{insight.summary}</p>
               </div>
-            )}
-
-            <p className="text-xs text-zinc-500">
-              Engine: <span className="font-mono text-zinc-400">{insight.engine}</span>
-            </p>
+              <div className="rounded-md border border-emerald-500/20 bg-emerald-500/[0.05] p-3.5">
+                <p className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold tracking-wide text-emerald-300 uppercase">
+                  <Wrench className="size-3.5" aria-hidden />
+                  Suggested fix
+                </p>
+                <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-zinc-200">{insight.suggestedFix}</p>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <p className="mb-1.5 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">
+                Evidence <span className="font-mono text-zinc-600">({insight.evidence.length})</span>
+              </p>
+              {insight.evidence.length === 0 ? (
+                <p className="text-[13px] text-zinc-500">The agent didn&apos;t cite specific log lines.</p>
+              ) : (
+                <ol className="scrollbar-thin max-h-64 overflow-auto rounded-md border border-white/[0.06] bg-ink-950 py-1.5 font-mono text-xs leading-relaxed">
+                  {insight.evidence.map((line, i) => (
+                    <li key={i} className="flex gap-3 px-3 py-0.5">
+                      <span className="w-4 shrink-0 text-right text-zinc-600 select-none">{i + 1}</span>
+                      <span className="min-w-0 break-words whitespace-pre-wrap text-zinc-300">{line}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
           </div>
         )}
       </div>

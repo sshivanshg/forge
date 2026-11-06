@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, ChevronRight, CircleStop, GitCommitHorizontal, Undo2 } from "lucide-react";
+import { ArrowUpRight, CircleStop, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,10 +9,10 @@ import { PipelineStepper } from "@/components/deployment/PipelineStepper";
 import { RollbackDialog } from "@/components/deployment/RollbackDialog";
 import { TrafficSplit } from "@/components/deployment/TrafficSplit";
 import { TriggerLabel } from "@/components/deployment/TriggerLabel";
+import { useBreadcrumbs } from "@/components/shell/Breadcrumbs";
 import { LogTerminal, StreamIndicator, type TerminalLine } from "@/components/LogTerminal";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -160,6 +160,16 @@ export default function DeploymentPage() {
     }
   }
 
+  const projectName = project.data?.name;
+  useBreadcrumbs(
+    [
+      { label: "Projects", href: "/projects" },
+      { label: projectName ?? "…", href: d ? `/projects/${d.projectId}` : undefined },
+      { label: id.slice(0, 8), mono: true },
+    ],
+    `dep:${id}:${projectName}`,
+  );
+
   const terminalLines: TerminalLine[] = useMemo(
     () => lines.map((l) => ({ key: l.seq, line: l.line, source: l.source, ts: l.ts })),
     [lines],
@@ -199,61 +209,15 @@ export default function DeploymentPage() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[13px] text-zinc-500">
-        <Link href="/projects" className="hover:text-zinc-200">
-          Projects
-        </Link>
-        <ChevronRight className="size-3.5" aria-hidden />
-        {p ? (
-          <Link href={`/projects/${p.id}`} className="truncate hover:text-zinc-200">
-            {p.name}
-          </Link>
-        ) : (
-          <Skeleton className="h-3.5 w-20" />
-        )}
-        <ChevronRight className="size-3.5" aria-hidden />
-        <span className="font-mono text-zinc-400" aria-current="page">
-          {d.id.slice(0, 8)}
-        </span>
-      </nav>
-
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={status} />
             {isLiveNow && <span className="text-xs font-medium text-emerald-400">Serving traffic</span>}
+            {status === "FAILED" && failureReason && <span className="text-xs font-medium text-red-300">{FAILURE_LABEL[failureReason]}</span>}
           </div>
-          <h1 className="truncate text-2xl font-semibold tracking-tight text-zinc-50">
-            {deploymentTitle(d)}
-          </h1>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-zinc-400">
-            <span className="inline-flex items-center gap-1.5">
-              <GitCommitHorizontal className="size-4 text-zinc-500" aria-hidden />
-              {commitUrl ? (
-                <a href={commitUrl} target="_blank" rel="noreferrer" className="font-mono hover:text-zinc-100 hover:underline">
-                  {shortSha(d.commitSha)}
-                </a>
-              ) : (
-                <span className="font-mono">{d.commitSha ? shortSha(d.commitSha) : "resolving…"}</span>
-              )}
-              {p && <span className="text-zinc-600">on {p.branch}</span>}
-            </span>
-            <TriggerLabel trigger={d.trigger} />
-            <span title={absoluteTime(d.createdAt)}>Created {relativeTime(d.createdAt)}</span>
-            {d.startedAt && (
-              <span className="tabular-nums">
-                {running ? "Running for " : "Took "}
-                {durationBetween(d.startedAt, running ? null : d.finishedAt)}
-              </span>
-            )}
-            {d.rollbackOfId && (
-              <Link href={`/deployments/${d.rollbackOfId}`} className="inline-flex items-center gap-1 text-brand-400 hover:text-brand-300">
-                <Undo2 className="size-3.5" aria-hidden /> {d.trigger === "RECOVERY" ? "Recovery of" : "Rollback of"} {d.rollbackOfId.slice(0, 8)}
-              </Link>
-            )}
-          </div>
+          <h1 className="text-xl font-semibold tracking-tight break-words text-zinc-50 sm:text-[22px]">{deploymentTitle(d)}</h1>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -280,8 +244,48 @@ export default function DeploymentPage() {
         </div>
       </div>
 
+      {/* Facts */}
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.07] sm:grid-cols-3 lg:grid-cols-5">
+        {[
+          {
+            k: "Commit",
+            v: commitUrl ? (
+              <a href={commitUrl} target="_blank" rel="noreferrer" className="font-mono hover:text-zinc-50 hover:underline">
+                {shortSha(d.commitSha)}
+              </a>
+            ) : (
+              <span className="font-mono">{d.commitSha ? shortSha(d.commitSha) : "resolving…"}</span>
+            ),
+          },
+          { k: "Branch", v: <span className="font-mono">{p?.branch ?? "—"}</span> },
+          { k: "Trigger", v: <TriggerLabel trigger={d.trigger} /> },
+          { k: "Created", v: <span title={absoluteTime(d.createdAt)}>{relativeTime(d.createdAt)}</span> },
+          {
+            k: running ? "Running for" : "Duration",
+            v: <span className="font-mono tabular">{d.startedAt ? durationBetween(d.startedAt, running ? null : d.finishedAt) : "—"}</span>,
+          },
+        ].map((f) => (
+          <div key={f.k} className="bg-ink-900 px-4 py-3">
+            <dt className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{f.k}</dt>
+            <dd className="mt-1 truncate text-[13px] text-zinc-200">{f.v}</dd>
+          </div>
+        ))}
+      </dl>
+      {d.rollbackOfId && (
+        <Link href={`/deployments/${d.rollbackOfId}`} className="-mt-3 inline-flex items-center gap-1 text-[13px] text-brand-400 hover:text-brand-300">
+          <Undo2 className="size-3.5" aria-hidden /> {d.trigger === "RECOVERY" ? "Recovery of" : "Rollback of"}{" "}
+          <span className="font-mono">{d.rollbackOfId.slice(0, 8)}</span>
+        </Link>
+      )}
+
       {/* Pipeline */}
-      <Card className="px-4 py-6 sm:px-6">
+      <section className="rounded-lg border border-white/[0.07] bg-ink-900 p-4 sm:p-5" aria-labelledby="pipeline-heading">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 id="pipeline-heading" className="text-[13px] font-semibold text-zinc-200">
+            Pipeline
+          </h2>
+          {p && <span className="text-[11px] text-zinc-500">{p.rollout === "CANARY" ? "Canary rollout" : "Blue-green rollout"} · {p.replicas}× replicas</span>}
+        </div>
         <PipelineStepper
           status={status}
           stoppedAt={stoppedStep(d, status, lastStep)}
@@ -291,21 +295,19 @@ export default function DeploymentPage() {
           steps={steps}
         />
         {status === "CANARY" && d.trafficPercent !== null && (
-          <TrafficSplit percent={d.trafficPercent} className="mx-auto mt-6 max-w-xl border-t border-white/[0.06] pt-5" />
+          <TrafficSplit percent={d.trafficPercent} className="mt-5 border-t border-white/[0.06] pt-5" />
         )}
-      </Card>
+      </section>
 
       {/* Failure + agent */}
       {status === "FAILED" && (
         <div className="space-y-4">
-          <Alert title={failureReason ? FAILURE_LABEL[failureReason] : "Deployment failed"}>
-            {d.failureDetail ? (
-              <pre className="mt-1 font-mono text-xs break-words whitespace-pre-wrap">{d.failureDetail}</pre>
-            ) : (
-              "The pipeline stopped. The agent's diagnosis is below."
-            )}
-          </Alert>
           <AgentInsightCard key={d.id} deploymentId={d.id} />
+          {d.failureDetail && (
+            <Alert title={failureReason ? FAILURE_LABEL[failureReason] : "Deployment failed"}>
+              <pre className="mt-1 font-mono text-xs break-words whitespace-pre-wrap">{d.failureDetail}</pre>
+            </Alert>
+          )}
         </div>
       )}
 
