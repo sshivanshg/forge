@@ -2,6 +2,7 @@ package com.forge.project.api;
 
 import com.forge.build.BuildType;
 import com.forge.project.ProjectSnapshot;
+import com.forge.project.RolloutMode;
 import com.forge.project.application.CreateProjectCommand;
 import com.forge.project.application.ProjectService;
 import com.forge.project.application.UpdateProjectCommand;
@@ -95,7 +96,9 @@ class ProjectController {
             r.buildType(),
             r.port(),
             r.healthCheckPath(),
-            r.autoDeploy());
+            r.autoDeploy(),
+            r.replicas(),
+            r.rollout());
     return toResponse(projects.update(user.id(), id, command));
   }
 
@@ -120,6 +123,8 @@ class ProjectController {
         p.port(),
         p.healthCheckPath(),
         p.autoDeploy(),
+        p.replicas(),
+        p.rollout(),
         appUrls.urlFor(p.slug()),
         p.liveDeploymentId(),
         project.createdAt(),
@@ -147,7 +152,9 @@ class ProjectController {
       BuildType buildType,
       @Min(1) @Max(65535) Integer port,
       String healthCheckPath,
-      Boolean autoDeploy) {}
+      Boolean autoDeploy,
+      @Min(1) @Max(3) Integer replicas,
+      RolloutMode rollout) {}
 
   record ProjectResponse(
       UUID id,
@@ -162,6 +169,8 @@ class ProjectController {
       int port,
       String healthCheckPath,
       boolean autoDeploy,
+      int replicas,
+      RolloutMode rollout,
       String liveUrl,
       UUID liveDeploymentId,
       Instant createdAt,

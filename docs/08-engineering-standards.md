@@ -56,13 +56,15 @@ flowchart TB
 | Integration | `AuthFlowIntegrationTest` | Register, login, refresh rotation, **refresh-token reuse detection**, logout |
 | Integration | `ProjectApiIntegrationTest` | CRUD, ownership (another user's project is 404), env-var masking, validation errors as ProblemDetail |
 | Integration | `JobQueueConcurrencyIntegrationTest` | Many threads claim concurrently with `SKIP LOCKED`: **each job goes to exactly one worker**; lease expiry, retry and DEAD |
-| Integration | `DeploymentPipelineIntegrationTest` | The whole pipeline through the real queue and DB (container engine and Git mocked at the port): LIVE, superseded, failed + insight, rollback, **self-healing recovery of a vanished container (once, without rebuilding)**, cancel, one-in-progress rule |
+| Integration | `DeploymentPipelineIntegrationTest` | The whole pipeline through the real queue and DB (container engine and Git mocked at the port): LIVE, superseded, failed + insight, rollback, **self-healing recovery of a vanished container (once, without rebuilding)**, **canary that passes in steps (0 → 20 → 50 → 100%) and one rolled back on a higher error rate**, rollback of a canary project switching at once, **2 replicas and recovery of one lost replica**, cancel, one-in-progress rule |
 | Integration | `WebhookIntegrationTest` | Bad HMAC rejected, duplicate delivery ignored, push to the tracked branch deploys |
 | Integration | `RoutingIntegrationTest` | `GET /internal/routing` answers 401 without the routing token or with a wrong one, and 200 with the right one |
+| Unit | `CanaryAnalysisTest` | Worse error rate or much slower → regression; errors the live version also has are not blamed on the new one; too little traffic is inconclusive |
+| Unit | `AppleRoutingTest` | Versions become weighted Traefik services, replicas share one; a 0% canary gets no traffic; Traefik's Prometheus counters summed per version |
 | Architecture | `ArchitectureTest` | Section 2 above |
 | End to end | `scripts/demo-push.sh` on real Apple container (29 Oct) | Deploy, zero-downtime swap (402 requests, 0 errors), wrong-port and crash failures keep the old version with the right agent diagnosis, rollback in 4 s. Earlier on Docker (27 Oct): 4 swaps, 1,340 requests, 0 errors. |
 
-**Totals:** 114 tests (85 unit/architecture + 29 integration), all green.
+**Totals:** 131 tests (98 unit/architecture + 33 integration), all green.
 
 **Rules**
 - Test names describe behaviour: `eachJobIsClaimedByExactlyOneOfManyWorkers`, `unhealthyNewVersionFailsAndTheOldOneKeepsServing`, `wrongPasswordAndUnknownUserGetTheSameAnswer`.
@@ -115,7 +117,7 @@ Test reports and the coverage report are uploaded as build artifacts.
 
 ## 8. Database rules
 
-- Flyway only (`V1`–`V8`). Never edit an applied migration. Hibernate runs with `ddl-auto: validate`, so a mapping that doesn't match the schema fails at startup.
+- Flyway only (`V1`–`V9`). Never edit an applied migration. Hibernate runs with `ddl-auto: validate`, so a mapping that doesn't match the schema fails at startup.
 - Every foreign key is indexed, and every list query has an index ([06 §4](06-database-schema.md#4-indexes-and-the-queries-they-serve)).
 - Business invariants are enforced **in the database too**: `UNIQUE`, `CHECK`, and the partial unique index allowing one in-progress deployment per project.
 - Optimistic locking (`@Version`) on aggregates that are updated concurrently.

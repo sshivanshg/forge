@@ -91,6 +91,20 @@ class DiagnosisRulesTest {
   }
 
   @Test
+  void canaryRegressionExplainsThatTheLiveVersionWasNeverAffected() {
+    Diagnosis d =
+        diagnose(
+            "CANARY_REGRESSION",
+            "error rate is 29.8% higher (new version: 47 requests, 29.8% errors, 5 ms avg; live"
+                + " version: 204 requests, 0.0% errors, 3 ms avg)",
+            "Server listening on port 8080");
+
+    assertThat(d.category()).isEqualTo("CANARY_REGRESSION");
+    assertThat(d.summary()).contains("returned more server errors", "/health");
+    assertThat(d.evidence().getFirst()).startsWith("error rate is 29.8% higher");
+  }
+
+  @Test
   void alwaysAnswersEvenWithNoClues() {
     Diagnosis d = diagnose("INTERNAL_ERROR", "something odd");
     assertThat(d.category()).isEqualTo("UNKNOWN");

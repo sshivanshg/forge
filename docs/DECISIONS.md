@@ -4,6 +4,26 @@ Scope decisions, newest first. **When a decision here conflicts with another doc
 
 ---
 
+## D-006 — Canary rollouts with automatic rollback, and replicas (2026-10-31)
+
+**Context:** blue-green only proves that the new version answers its *health path*. A release that is healthy but broken for real visitors (a page that 500s, a slow query) still took 100% of the traffic. And every app ran as one container, so one crash meant downtime until self-healing kicked in.
+
+**Decision:**
+| Change | How | Where |
+|--------|-----|-------|
+| **Canary rollout** (per project) | After the health check, the new version gets 20%, then 50% of the traffic, 15 s each. At every step Forge compares its 5xx rate and mean latency with the live version's **over the same period** (`CanaryAnalysis`). Worse by more than 5 points of errors, or 2× and 200 ms slower → traffic goes back to the live version at once, the new one is removed, `FAILED(CANARY_REGRESSION)`. Too little traffic → it judges on health alone and says so. Forge drives 10 test requests/s through the proxy, so a quiet app can still be judged. | `CanaryRollout`, `CanaryAnalysis`, `RolloutSelector` |
+| Traffic splitting and metrics | Each version is its own Traefik service under one **weighted** service; the weights are the split. Traefik's Prometheus counters per service give requests, 5xx and latency per version. Both behind ports: `TrafficSplitter`, `TrafficMetrics`. | `runtime`, `TraefikRoutes`, `TraefikMetrics` |
+| **Replicas** (1–3 per project) | A deployment starts one container per replica; all must be healthy. Traefik balances across them. Self-healing recovers a full set when one replica dies, while the others keep serving. | `RolloutSteps`, migration `V9` |
+| New state | `HEALTH_CHECKING → CANARY → LIVE \| FAILED`; `traffic_percent` on the deployment. `CANARY` counts as in progress (one per project). | `DeploymentStatus`, `V9` |
+
+**Why it matters for the design:** it is a second `RolloutStrategy` beside `BlueGreenRollout` (Strategy pattern). The shared steps moved into `RolloutSteps` (composition, not inheritance), and `RolloutSelector` picks per deployment: rollbacks, recoveries and first deploys always switch at once. Docker's labels are immutable, so the Docker engine has no `TrafficSplitter` bean and falls back to blue-green with a log line.
+
+**Measured on Apple container:** canary 20% → 50% → 100% (the proxy measured 46/205 then 122/131 requests), visitors 927 OK / 0 errors. A release where 30% of pages fail was rolled back at 20% ("error rate 29.8% higher"); visitors saw 3 errors in 574 requests. Deleting one of two replicas: 646 OK / 0 errors during recovery.
+
+**Trade-offs:** the traffic split lives in memory; if Forge restarts mid-canary, the retried job abandons that canary (traffic back to the live version, deployment failed) rather than guess. A canary takes about 30 s longer than blue-green.
+
+---
+
 ## D-005 — Self-healing, early port-mismatch failure, demo account (2026-10-31)
 
 **Context:** using Forge end to end as a user surfaced three gaps. After the Mac restarted, every project still said **Live** while its container was gone. A wrong port cost the full 90 s health timeout although the app announced the problem in its first log line. And showing Forge to someone meant typing credentials.

@@ -138,7 +138,7 @@ class AppleContainerRuntimeProvider implements RuntimeProvider {
         "true",
         "forge.project",
         String.valueOf(spec.projectSlug()),
-        "forge.deployment",
+        AppleRoutingTable.DEPLOYMENT,
         spec.deploymentId().toString(),
         AppleRoutingTable.ROUTE,
         spec.routeName(),

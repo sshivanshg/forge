@@ -69,6 +69,10 @@ public class Deployment extends AbstractAggregateRoot<Deployment> {
   @Column(name = "image_ref")
   private String imageRef;
 
+  /** Share of the traffic the new version gets while in CANARY; null otherwise. */
+  @Column(name = "traffic_percent")
+  private Integer trafficPercent;
+
   @Column(name = "rollback_of_id")
   private UUID rollbackOfId;
 
@@ -176,8 +180,30 @@ public class Deployment extends AbstractAggregateRoot<Deployment> {
     transitionTo(DeploymentStatus.HEALTH_CHECKING, "Container started, checking health", now);
   }
 
+  /** Healthy: start sending it a small share of the traffic, next to the live version. */
+  public void startCanary(int percent, Instant now) {
+    transitionTo(DeploymentStatus.CANARY, "Canary started with " + percent + "% of traffic", now);
+    this.trafficPercent = percent;
+  }
+
+  /** A canary step passed: give the new version a bigger share. */
+  public void shiftTraffic(int percent) {
+    if (status != DeploymentStatus.CANARY) {
+      throw new IllegalStateTransitionException(id, status, DeploymentStatus.CANARY);
+    }
+    if (percent < 0 || percent > 100) {
+      throw new IllegalArgumentException("percent must be between 0 and 100");
+    }
+    this.trafficPercent = percent;
+  }
+
   public void goLive(Instant now) {
-    transitionTo(DeploymentStatus.LIVE, "Health check passed, traffic switched", now);
+    String message =
+        status == DeploymentStatus.CANARY
+            ? "Canary passed, all traffic switched"
+            : "Health check passed, traffic switched";
+    transitionTo(DeploymentStatus.LIVE, message, now);
+    this.trafficPercent = null;
     this.finishedAt = now;
   }
 
@@ -188,6 +214,7 @@ public class Deployment extends AbstractAggregateRoot<Deployment> {
     this.failureReason = reason;
     this.failureDetail = truncate(detail, 4_000);
     transitionTo(DeploymentStatus.FAILED, reason.name(), now);
+    this.trafficPercent = null;
     this.finishedAt = now;
   }
 
@@ -265,6 +292,10 @@ public class Deployment extends AbstractAggregateRoot<Deployment> {
 
   public String imageRef() {
     return imageRef;
+  }
+
+  public Integer trafficPercent() {
+    return trafficPercent;
   }
 
   public UUID rollbackOfId() {

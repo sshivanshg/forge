@@ -150,6 +150,7 @@ classDiagram
         BUILDING
         DEPLOYING
         HEALTH_CHECKING
+        CANARY
         LIVE
         FAILED
         CANCELLED
@@ -166,10 +167,11 @@ classDiagram
     Project "1" *-- "1" Slug
     Project "1" *-- "1" RepoRef
     Project "1" *-- "1" BuildSettings
+    Project "1" *-- "1" RunSettings
     Project "1" *-- "0..*" EnvironmentVariable : configures
     Project "1" *-- "0..*" Deployment : history
     Deployment "1" *-- "1..*" DeploymentEvent : audit trail
-    Deployment "1" *-- "0..1" RuntimeInstanceRecord : runs as
+    Deployment "1" *-- "0..*" RuntimeInstanceRecord : runs as (one per replica)
     Deployment "1" *-- "0..*" LogLine : produces
     Deployment "1" --> "0..1" Insight : diagnosed by
     Deployment "0..*" --> "0..1" Deployment : rollbackOf
@@ -355,6 +357,30 @@ classDiagram
         +rollout(RolloutContext) void
     }
     class BlueGreenRollout
+    class CanaryRollout {
+        -CanaryAnalysis analysis
+        +rollout(RolloutContext) void
+        +abandon(RolloutContext) void
+    }
+    class RolloutSelector {
+        +select(Deployment, ProjectSnapshot) Choice
+    }
+    class RolloutSteps {
+        +startHealthy(ctx) Optional~List~RunningInstance~~
+        +retirePreviousVersions(id, project) void
+    }
+    class CanaryAnalysis {
+        +judge(TrafficSample canary, TrafficSample live) Verdict
+    }
+    class TrafficSplitter {
+        <<interface>>
+        +split(route, deploymentId, percent) void
+        +reset(route) void
+    }
+    class TrafficMetrics {
+        <<interface>>
+        +sample(route, deploymentId) Optional~TrafficSample~
+    }
     class RuntimeProvider {
         <<interface>>
         +start(ContainerSpec) RunningInstance
@@ -426,11 +452,20 @@ classDiagram
     BuildJobHandler --> DeploymentTransitions
     BuildJobHandler --> BuildService
     DeployJobHandler --> DeploymentTransitions
-    DeployJobHandler --> RolloutStrategy
+    DeployJobHandler --> RolloutSelector
+    RolloutSelector --> RolloutStrategy : picks one
     RolloutStrategy <|.. BlueGreenRollout
-    BlueGreenRollout --> RuntimeProvider
-    BlueGreenRollout --> HealthProbe
-    BlueGreenRollout ..> ContainerSpec : builds
+    RolloutStrategy <|.. CanaryRollout
+    BlueGreenRollout --> RolloutSteps
+    CanaryRollout --> RolloutSteps
+    CanaryRollout *-- CanaryAnalysis
+    CanaryRollout --> TrafficSplitter
+    CanaryRollout --> TrafficMetrics
+    RolloutSteps --> RuntimeProvider
+    RolloutSteps --> HealthProbe
+    RolloutSteps ..> ContainerSpec : builds, one per replica
+    TrafficSplitter <|.. AppleRoutingTable
+    TrafficMetrics <|.. TraefikMetrics
     RuntimeProvider <|.. AppleContainerRuntimeProvider
     RuntimeProvider <|.. DockerRuntimeProvider
     AppleContainerRuntimeProvider --> ContainerCli
@@ -444,6 +479,8 @@ classDiagram
 ```
 
 Only one `RuntimeProvider` exists at runtime. `AppleRuntimeConfig` wires `AppleContainerRuntimeProvider` and `AppleRoutingTable` when `forge.engine=apple` (the default); `DockerRuntimeProvider` (with `TraefikLabels`) is active when `forge.engine=docker`. `AppleRoutingTable` rebuilds Traefik's configuration (via `TraefikRoutes`) from the labels on the running containers, so nothing is kept only in memory. `BlueGreenRollout` sees only `RuntimeProvider`; the `deployment` module had no changes when the Apple adapters were added.
+
+Two rollout strategies share their steps through `RolloutSteps` (composition): start one container per replica and health-check each, retire the previous version. `CanaryRollout` adds the control loop around two more ports, `TrafficSplitter` (weights per version; `AppleRoutingTable` turns them into a weighted Traefik service) and `TrafficMetrics` (Traefik's Prometheus counters per version). `RolloutSelector` picks the strategy per deployment and falls back to blue-green for rollbacks, recoveries, first deploys, and on Docker, which has no `TrafficSplitter` bean ([D-006](DECISIONS.md)).
 
 ## 4. Agent, logs and notifications
 

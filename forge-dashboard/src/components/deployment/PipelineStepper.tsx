@@ -13,6 +13,7 @@ const STEP_LABEL: Record<PipelineStep, string> = {
   BUILDING: "Build",
   DEPLOYING: "Deploy",
   HEALTH_CHECKING: "Health check",
+  CANARY: "Canary",
   LIVE: "Live",
 };
 
@@ -22,6 +23,7 @@ const CURRENT_STYLE: Record<PipelineStep, { ring: string; text: string; glow: st
   BUILDING: { ring: "border-sky-400 bg-sky-500/15", text: "text-sky-300", glow: "rgb(56 189 248 / 0.45)" },
   DEPLOYING: { ring: "border-violet-400 bg-violet-500/15", text: "text-violet-300", glow: "rgb(167 139 250 / 0.45)" },
   HEALTH_CHECKING: { ring: "border-amber-400 bg-amber-500/15", text: "text-amber-300", glow: "rgb(251 191 36 / 0.45)" },
+  CANARY: { ring: "border-cyan-400 bg-cyan-500/15", text: "text-cyan-300", glow: "rgb(34 211 238 / 0.45)" },
   LIVE: { ring: "border-emerald-400 bg-emerald-500/15", text: "text-emerald-300", glow: "rgb(52 211 153 / 0.45)" },
 };
 
@@ -34,32 +36,39 @@ interface PipelineStepperProps {
   finishedAt: string | null;
   /** Steps this deployment didn't need, e.g. the build of a rollback (it reuses an image). */
   skipped?: readonly PipelineStep[];
+  /** The steps to show; canary rollouts add a CANARY step before LIVE. */
+  steps?: readonly PipelineStep[];
 }
 
-function computeStates(status: DeploymentStatus, stoppedAt: PipelineStep | null): StepState[] {
-  const idxOf = (s: PipelineStep) => PIPELINE_STEPS.indexOf(s);
+function computeStates(
+  steps: readonly PipelineStep[],
+  status: DeploymentStatus,
+  stoppedAt: PipelineStep | null,
+): StepState[] {
+  const idxOf = (s: PipelineStep) => steps.indexOf(s);
   switch (status) {
     case "FAILED": {
       const stop = idxOf(stoppedAt ?? "QUEUED");
-      return PIPELINE_STEPS.map((_, i) => (i < stop ? "done" : i === stop ? "failed" : "pending"));
+      return steps.map((_, i) => (i < stop ? "done" : i === stop ? "failed" : "pending"));
     }
     case "CANCELLED": {
       const stop = idxOf(stoppedAt ?? "QUEUED");
-      return PIPELINE_STEPS.map((_, i) => (i < stop ? "retired" : i === stop ? "cancelled" : "pending"));
+      return steps.map((_, i) => (i < stop ? "retired" : i === stop ? "cancelled" : "pending"));
     }
     case "SUPERSEDED":
     case "STOPPED":
-      return PIPELINE_STEPS.map(() => "retired");
+      return steps.map(() => "retired");
     case "LIVE":
-      return PIPELINE_STEPS.map(() => "done");
+      return steps.map(() => "done");
     default: {
       const cur = idxOf(status);
-      return PIPELINE_STEPS.map((_, i) => (i < cur ? "done" : i === cur ? "current" : "pending"));
+      return steps.map((_, i) => (i < cur ? "done" : i === cur ? "current" : "pending"));
     }
   }
 }
 
 function stepDuration(
+  steps: readonly PipelineStep[],
   step: PipelineStep,
   index: number,
   enteredAt: PipelineStepperProps["enteredAt"],
@@ -71,7 +80,7 @@ function stepDuration(
   const start = enteredAt[step];
   if (!start) return "";
   let end: string | undefined;
-  for (const later of PIPELINE_STEPS.slice(index + 1)) {
+  for (const later of steps.slice(index + 1)) {
     if (enteredAt[later]) {
       end = enteredAt[later];
       break;
@@ -82,18 +91,25 @@ function stepDuration(
   return ms >= 0 ? formatDuration(ms) : "";
 }
 
-export function PipelineStepper({ status, stoppedAt, enteredAt, finishedAt, skipped = [] }: PipelineStepperProps) {
-  const states = computeStates(status, stoppedAt);
+export function PipelineStepper({
+  status,
+  stoppedAt,
+  enteredAt,
+  finishedAt,
+  skipped = [],
+  steps = PIPELINE_STEPS,
+}: PipelineStepperProps) {
+  const states = computeStates(steps, status, stoppedAt);
 
   return (
     <div className="scrollbar-thin overflow-x-auto">
       <ol className="flex min-w-[560px] items-start" aria-label="Deployment pipeline">
-        {PIPELINE_STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const state = states[i];
           const current = CURRENT_STYLE[step];
-          const isLast = i === PIPELINE_STEPS.length - 1;
+          const isLast = i === steps.length - 1;
           const nextState = states[i + 1];
-          const duration = stepDuration(step, i, enteredAt, state, status, finishedAt);
+          const duration = stepDuration(steps, step, i, enteredAt, state, status, finishedAt);
           let label: string = STEP_LABEL[step];
           if (isLast && (status === "SUPERSEDED" || status === "STOPPED")) label = STATUS_META[status].label;
 

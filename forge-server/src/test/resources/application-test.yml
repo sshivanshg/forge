@@ -20,6 +20,9 @@ forge:
   deploy:
     drain-delay: 0s
     self-heal: false # tests call LiveInstanceWatcher directly
+    canary:
+      step-duration: 50ms
+      synthetic-rps: 0 # tests feed traffic numbers through a mocked TrafficMetrics
 spring:
   main:
     banner-mode: off

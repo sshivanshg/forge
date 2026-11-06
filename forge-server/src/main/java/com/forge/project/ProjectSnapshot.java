@@ -17,4 +17,6 @@ public record ProjectSnapshot(
     int port,
     String healthCheckPath,
     boolean autoDeploy,
+    int replicas,
+    RolloutMode rollout,
     UUID liveDeploymentId) {}

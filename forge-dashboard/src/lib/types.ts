@@ -56,6 +56,10 @@ export interface GitHubRepo {
 export const BUILD_TYPES = ["AUTO", "DOCKERFILE", "MAVEN", "GRADLE", "NODE"] as const;
 export type BuildType = (typeof BUILD_TYPES)[number];
 
+export const ROLLOUT_MODES = ["BLUE_GREEN", "CANARY"] as const;
+export type RolloutMode = (typeof ROLLOUT_MODES)[number];
+export const MAX_REPLICAS = 3;
+
 export interface Project {
   id: UUID;
   name: string;
@@ -69,6 +73,9 @@ export interface Project {
   port: number;
   healthCheckPath: string;
   autoDeploy: boolean;
+  /** Identical instances behind the load balancer (1–3). */
+  replicas: number;
+  rollout: RolloutMode;
   /** Always computed from the slug; only reachable when liveDeploymentId is set. */
   liveUrl: string;
   liveDeploymentId: UUID | null;
@@ -89,7 +96,10 @@ export interface CreateProjectInput {
   autoDeploy?: boolean;
 }
 
-export type UpdateProjectInput = Partial<Omit<CreateProjectInput, "slug">>;
+export type UpdateProjectInput = Partial<Omit<CreateProjectInput, "slug">> & {
+  replicas?: number;
+  rollout?: RolloutMode;
+};
 
 export interface EnvVar {
   key: string;
@@ -99,8 +109,11 @@ export interface EnvVar {
 
 // ---------------------------------------------------------------- Deployments
 
-export const PIPELINE_STEPS = ["QUEUED", "BUILDING", "DEPLOYING", "HEALTH_CHECKING", "LIVE"] as const;
-export type PipelineStep = (typeof PIPELINE_STEPS)[number];
+/** Every step a deployment can pass through; CANARY only in canary rollouts. */
+export const ALL_PIPELINE_STEPS = ["QUEUED", "BUILDING", "DEPLOYING", "HEALTH_CHECKING", "CANARY", "LIVE"] as const;
+export type PipelineStep = (typeof ALL_PIPELINE_STEPS)[number];
+/** The steps of a blue-green rollout (the default). */
+export const PIPELINE_STEPS: readonly PipelineStep[] = ALL_PIPELINE_STEPS.filter((s) => s !== "CANARY");
 
 export type DeploymentStatus =
   | PipelineStep
@@ -117,6 +130,7 @@ export type FailureReason =
   | "PUSH_FAILED"
   | "RUNTIME_ERROR"
   | "UNHEALTHY"
+  | "CANARY_REGRESSION"
   | "INTERNAL_ERROR";
 
 export type DeploymentTrigger = "MANUAL" | "WEBHOOK" | "ROLLBACK" | "RECOVERY";
@@ -135,6 +149,8 @@ export interface Deployment {
   commitMessage: string | null;
   trigger: DeploymentTrigger;
   status: DeploymentStatus;
+  /** The new version's share of the traffic while in CANARY, else null. */
+  trafficPercent: number | null;
   failureReason: FailureReason | null;
   failureDetail: string | null;
   imageRef: string | null;

@@ -1,6 +1,7 @@
 package com.forge.agent.domain;
 
 import com.forge.agent.domain.Diagnosis.Confidence;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -29,6 +30,7 @@ public final class DiagnosisRules {
         new HealthPathNotFound(),
         new MissingConfiguration(),
         new CrashOnStartup(),
+        new CanaryRegression(),
         new Generic());
   }
 
@@ -247,6 +249,33 @@ public final class DiagnosisRules {
         }
       }
       return Optional.empty();
+    }
+  }
+
+  /** Healthy on its health path, but worse than the live version on real traffic. */
+  static final class CanaryRegression implements DiagnosisRule {
+    @Override
+    public Optional<Diagnosis> evaluate(FailureContext c) {
+      if (!c.failedWith("CANARY_REGRESSION")) {
+        return Optional.empty();
+      }
+      List<String> evidence = new ArrayList<>(List.of(c.failureDetail()));
+      evidence.addAll(c.linesContaining("error", "exception", "timeout"));
+      boolean slower = c.failureDetail().startsWith("responses are much slower");
+      return Optional.of(
+          new Diagnosis(
+              "CANARY_REGRESSION",
+              "The new version passed its health check on "
+                  + c.healthCheckPath()
+                  + ", but on real traffic it "
+                  + (slower ? "answered much more slowly" : "returned more server errors")
+                  + " than the live version, so Forge moved all traffic back. Only the canary's"
+                  + " share of visitors was affected.",
+              "Request the app's real pages (not just the health path) on the new commit to"
+                  + " reproduce it, fix the cause, and push again. The live version is untouched,"
+                  + " so there is nothing to roll back.",
+              Confidence.HIGH,
+              evidence.stream().limit(5).toList()));
     }
   }
 

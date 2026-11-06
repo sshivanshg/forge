@@ -5,8 +5,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Strategy for replacing the running version of an app with a new one. {@link BlueGreenRollout} is
- * the implementation used; a "recreate" or "canary" strategy would be another class.
+ * Strategy for replacing the running version of an app with a new one: {@link BlueGreenRollout}
+ * (all traffic at once) or {@link CanaryRollout} (traffic in steps, judged on live metrics). {@link
+ * RolloutSelector} picks one per deployment.
  */
 public interface RolloutStrategy {
 

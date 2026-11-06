@@ -136,7 +136,7 @@ public class DeploymentTransitions {
 
   /**
    * Prepares the deploy step. Normal deployments are already DEPLOYING; rollbacks move QUEUED →
-   * DEPLOYING here. A retried job may find HEALTH_CHECKING and simply starts over.
+   * DEPLOYING here. A retried job may find HEALTH_CHECKING (and simply starts over) or CANARY.
    */
   @Transactional
   public Optional<Deployment> beginDeploy(UUID id) {
@@ -147,8 +147,8 @@ public class DeploymentTransitions {
         deployment.startDeployWithExistingImage(now());
         deployments.saveAndFlush(deployment);
       }
-      case DEPLOYING, HEALTH_CHECKING -> {
-        // nothing to change
+      case DEPLOYING, HEALTH_CHECKING, CANARY -> {
+        // a retried job: the rollout strategy decides how to carry on
       }
       default -> {
         return Optional.empty();
@@ -166,6 +166,21 @@ public class DeploymentTransitions {
     }
   }
 
+  /** HEALTH_CHECKING → CANARY: the new version now gets {@code percent} of the traffic. */
+  @Transactional
+  public void startCanary(UUID id, int percent) {
+    Deployment deployment = load(id);
+    deployment.startCanary(percent, now());
+    deployments.save(deployment);
+  }
+
+  @Transactional
+  public void shiftTraffic(UUID id, int percent) {
+    Deployment deployment = load(id);
+    deployment.shiftTraffic(percent);
+    deployments.save(deployment);
+  }
+
   /** → LIVE; the previously live deployment becomes SUPERSEDED. */
   @Transactional
   public void goLive(UUID id) {
@@ -180,7 +195,7 @@ public class DeploymentTransitions {
         deployments.save(previous);
       }
     }
-    instances.findByDeployment(id).ifPresent(RuntimeInstanceRecord::markRunning);
+    instances.findByDeployment(id).forEach(RuntimeInstanceRecord::markRunning);
     projects.recordLiveDeployment(deployment.projectId(), id);
   }
 
@@ -217,9 +232,10 @@ public class DeploymentTransitions {
   }
 
   @Transactional
-  public void recordInstance(UUID deploymentId, RunningInstance instance) {
-    instances
-        .findByDeployment(deploymentId)
+  public void recordInstance(UUID deploymentId, int replica, RunningInstance instance) {
+    instances.findByDeployment(deploymentId).stream()
+        .filter(existing -> existing.replica() == replica)
+        .findFirst()
         .ifPresentOrElse(
             existing ->
                 existing.replaceContainer(instance.instanceId(), instance.probeUrl().toString()),
@@ -227,18 +243,20 @@ public class DeploymentTransitions {
                 instances.save(
                     new RuntimeInstanceRecord(
                         deploymentId,
+                        replica,
                         instance.instanceId(),
                         instance.probeUrl().toString(),
                         now())));
   }
 
   @Transactional
-  public void markInstanceStopped(UUID deploymentId) {
-    instances.findByDeployment(deploymentId).ifPresent(r -> r.markStopped(now()));
+  public void markInstancesStopped(UUID deploymentId) {
+    instances.findByDeployment(deploymentId).forEach(r -> r.markStopped(now()));
   }
 
+  /** The deployment's containers, one per replica. */
   @Transactional(readOnly = true)
-  public Optional<RuntimeInstanceRecord> instanceOf(UUID deploymentId) {
+  public List<RuntimeInstanceRecord> instancesOf(UUID deploymentId) {
     return instances.findByDeployment(deploymentId);
   }
 

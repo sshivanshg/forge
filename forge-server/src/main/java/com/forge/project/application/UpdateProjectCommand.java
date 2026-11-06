@@ -1,6 +1,7 @@
 package com.forge.project.application;
 
 import com.forge.build.BuildType;
+import com.forge.project.RolloutMode;
 
 /** Partial update: {@code null} means "leave unchanged". The slug is immutable by design. */
 public record UpdateProjectCommand(
@@ -12,4 +13,6 @@ public record UpdateProjectCommand(
     BuildType buildType,
     Integer port,
     String healthCheckPath,
-    Boolean autoDeploy) {}
+    Boolean autoDeploy,
+    Integer replicas,
+    RolloutMode rollout) {}

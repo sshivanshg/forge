@@ -41,7 +41,10 @@ public class RuntimeLogStreamer {
       return emitter;
     }
     RuntimeInstanceRecord instance =
-        transitions.instanceOf(project.liveDeploymentId()).orElse(null);
+        transitions.instancesOf(project.liveDeploymentId()).stream()
+            .filter(i -> i.status() != RuntimeInstanceRecord.Status.STOPPED)
+            .findFirst()
+            .orElse(null); // with several replicas, follow the first one still running
     if (instance == null || instance.status() == RuntimeInstanceRecord.Status.STOPPED) {
       sendAndComplete(emitter, "The app is not running.");
       return emitter;

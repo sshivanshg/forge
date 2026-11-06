@@ -2,6 +2,7 @@ package com.forge.runtime.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.runtime.RuntimeProvider;
+import com.forge.runtime.TrafficMetrics;
 import com.forge.runtime.application.RoutingTable;
 import com.forge.shared.container.ContainerCli;
 import java.time.Clock;
@@ -19,9 +20,15 @@ class AppleRuntimeConfig {
     return new AppleContainers(cli, json);
   }
 
+  /** Both the routing table Traefik polls and the traffic splitter canary rollouts use. */
   @Bean
-  RoutingTable routingTable(AppleContainers containers, Clock clock) {
+  AppleRoutingTable routingTable(AppleContainers containers, Clock clock) {
     return new AppleRoutingTable(containers, clock);
+  }
+
+  @Bean
+  TrafficMetrics trafficMetrics(RuntimeProperties properties) {
+    return new TraefikMetrics(properties.proxyMetricsUrl());
   }
 
   @Bean
