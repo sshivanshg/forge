@@ -5,18 +5,28 @@
 #
 #   hello-node        demo/hello-node,   port 8080, /health          → goes LIVE
 #   hello-spring      demo/hello-spring, port 8080, /actuator/health → goes LIVE
-#   spring-wrong-port demo/hello-spring, port 3000, /actuator/health → FAILS: Forge sets PORT=3000,
-#                     but Spring Boot ignores PORT and listens on 8080, so the health check fails
-#                     and the agent diagnoses PORT_MISMATCH
+#
+# With --with-failure it also produces a real failed deploy for the agent to diagnose: it runs
+# scripts/demo-push.sh break-port (hello-node starts listening on 3000 instead of PORT, the health
+# check fails, the agent reports PORT_MISMATCH while v1 keeps serving), waits for that deploy to
+# finish, then demo-push.sh fix (a good deploy goes live again). No sample repo listens on a wrong
+# port by itself (both honour PORT), so the failure comes from that real pushed commit.
 #
 # Prerequisites: scripts/demo-repos.sh has been run, FORGE_GIT_BASE_URL in .env points at it, and
 # forge-server is running locally. Needs curl and jq.
-# Usage: scripts/demo-seed.sh [--redeploy]
+# Usage: scripts/demo-seed.sh [--redeploy] [--with-failure]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 API="${FORGE_API:-http://localhost:8080}"
-REDEPLOY="${1:-}"
+REDEPLOY=""; FAILURE=""
+for arg in "$@"; do
+  case "$arg" in
+    --redeploy) REDEPLOY="--redeploy" ;;
+    --with-failure) FAILURE=1 ;;
+    *) echo "unknown option $arg" >&2; exit 1 ;;
+  esac
+done
 
 case "$API" in
   http://localhost:*|http://127.0.0.1:*|http://localhost|http://127.0.0.1) ;;
@@ -66,7 +76,23 @@ seed() { # name slug repo port healthPath
 
 seed "Hello Node" hello-node hello-node 8080 /health
 seed "Hello Spring" hello-spring hello-spring 8080 /actuator/health
-seed "Spring Wrong Port" spring-wrong-port hello-spring 3000 /actuator/health
+
+wait_idle() { # slug: waits until the project's newest deployment is no longer in progress
+  local id status
+  id="$(api GET "/projects?size=100" | jq -r --arg s "$1" '.content[] | select(.slug == $s) | .id')"
+  for _ in $(seq 1 120); do
+    status="$(api GET "/projects/$id/deployments?size=1" | jq -r '.content[0].status // "NONE"')"
+    case "$status" in QUEUED|BUILDING|DEPLOYING|HEALTH_CHECKING|CANARY) sleep 5 ;; *) echo "$1: $status"; return ;; esac
+  done
+  echo "timed out waiting for $1" >&2; exit 1
+}
+
+if [[ -n "$FAILURE" ]]; then
+  wait_idle hello-node
+  "$ROOT/scripts/demo-push.sh" break-port hello-node
+  sleep 3; wait_idle hello-node   # expect FAILED (UNHEALTHY → agent: PORT_MISMATCH)
+  "$ROOT/scripts/demo-push.sh" fix hello-node
+fi
 
 echo
 echo "Deploys run in the background; watch them at http://localhost:3000."
