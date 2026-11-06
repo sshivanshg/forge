@@ -144,7 +144,7 @@ export function ArchitectureExplorer() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <div className="scrollbar-thin overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-900/60 dot-grid">
+      <div className="scrollbar-thin self-start overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-900/60 dot-grid">
         <svg viewBox="0 0 1000 560" className="min-w-[760px]" role="group" aria-label="Forge system architecture. Select a component for details.">
           <defs>
             <marker id="ae-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
