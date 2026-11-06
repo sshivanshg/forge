@@ -8,11 +8,11 @@ type Size = "sm" | "md";
 
 const base =
   "inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 " +
   "disabled:pointer-events-none disabled:opacity-50";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-violet-600 text-white shadow-sm shadow-violet-950/50 hover:bg-violet-500",
+  primary: "bg-brand-600 text-white shadow-sm shadow-brand-950/50 hover:bg-brand-500",
   secondary: "border border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08] hover:border-white/15",
   ghost: "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]",
   danger: "bg-red-600/90 text-white hover:bg-red-500",

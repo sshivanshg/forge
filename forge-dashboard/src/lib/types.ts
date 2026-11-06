@@ -188,3 +188,47 @@ export interface Insight {
   evidence: string[];
   createdAt: ISODate;
 }
+
+// ---------------------------------------------------------------- Observability
+
+/** Cumulative request counters for one deployment, sampled by the router. */
+export interface TrafficSnapshot {
+  deploymentId: UUID;
+  requests: number;
+  serverErrors: number;
+  errorRate: number;
+  meanLatencyMs: number;
+  sampledAt: ISODate;
+}
+
+export interface RuntimeInstance {
+  id: string;
+  deploymentId: UUID;
+  replicaIndex: number;
+  address: string | null;
+  state: string;
+  startedAt: ISODate | null;
+  /** Share of traffic routed to this instance, 0–100 (or 0–1; normalised by the UI). */
+  trafficWeight: number | null;
+}
+
+export interface ActivityItem extends Deployment {
+  projectName: string;
+  projectSlug: string;
+}
+
+export interface DeploysByDay {
+  date: string;
+  succeeded: number;
+  failed: number;
+}
+
+export interface Overview {
+  projects: number;
+  liveProjects: number;
+  deploys7d: number;
+  failed7d: number;
+  successRate7d: number | null;
+  medianDeployMs7d: number | null;
+  deploysByDay: DeploysByDay[];
+}

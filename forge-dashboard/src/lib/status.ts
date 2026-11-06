@@ -26,7 +26,7 @@ export const STATUS_META: Record<DeploymentStatus, StatusMeta> = {
 
 export const TONE_CLASSES: Record<Tone, { text: string; bg: string; border: string; dot: string }> = {
   blue: { text: "text-sky-300", bg: "bg-sky-500/10", border: "border-sky-500/25", dot: "bg-sky-400" },
-  violet: { text: "text-violet-300", bg: "bg-violet-500/10", border: "border-violet-500/25", dot: "bg-violet-400" },
+  violet: { text: "text-brand-300", bg: "bg-brand-500/10", border: "border-brand-500/25", dot: "bg-brand-400" },
   amber: { text: "text-amber-300", bg: "bg-amber-500/10", border: "border-amber-500/25", dot: "bg-amber-400" },
   cyan: { text: "text-cyan-300", bg: "bg-cyan-500/10", border: "border-cyan-500/25", dot: "bg-cyan-400" },
   green: { text: "text-emerald-300", bg: "bg-emerald-500/10", border: "border-emerald-500/25", dot: "bg-emerald-400" },

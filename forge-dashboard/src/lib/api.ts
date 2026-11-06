@@ -6,8 +6,12 @@ import type {
   GitHubRepo,
   Insight,
   LogLine,
+  ActivityItem,
+  Overview,
   Page,
   ProblemDetail,
+  RuntimeInstance,
+  TrafficSnapshot,
   Project,
   TokenPair,
   UpdateProjectInput,
@@ -238,6 +242,22 @@ export const api = {
     update: (id: string, body: UpdateProjectInput) =>
       request<Project>("PATCH", `/projects/${enc(id)}`, { body }),
     remove: (id: string) => request<void>("DELETE", `/projects/${enc(id)}`),
+    instances: (id: string) => request<RuntimeInstance[]>("GET", `/projects/${enc(id)}/instances`),
+  },
+
+  overview: () => request<Overview>("GET", "/overview"),
+  activity: (limit = 20) => request<ActivityItem[]>("GET", `/activity?limit=${limit}`),
+
+  /** Spring actuator health; true when the control plane answers UP. */
+  health: async (): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_URL}/actuator/health`, { cache: "no-store" });
+      if (!res.ok) return false;
+      const body = (await res.json()) as { status?: string };
+      return body.status === "UP";
+    } catch {
+      return false;
+    }
   },
 
   env: {
@@ -260,6 +280,7 @@ export const api = {
     rollback: (id: string) => request<Deployment>("POST", `/deployments/${enc(id)}/rollback`),
     logs: (id: string, after = 0, limit = 500) =>
       request<LogLine[]>("GET", `/deployments/${enc(id)}/logs?after=${after}&limit=${limit}`),
+    traffic: (id: string) => request<TrafficSnapshot>("GET", `/deployments/${enc(id)}/traffic`),
     insight: (id: string) => request<Insight>("GET", `/deployments/${enc(id)}/insight`),
     logStreamPath: (id: string) => `/deployments/${enc(id)}/logs/stream`,
     runtimeStreamPath: (projectId: string) => `/projects/${enc(projectId)}/runtime-logs/stream`,

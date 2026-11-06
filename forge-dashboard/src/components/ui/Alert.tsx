@@ -13,7 +13,7 @@ interface AlertProps {
 const tones = {
   error: "border-red-500/25 bg-red-500/[0.07] text-red-200",
   warning: "border-amber-500/25 bg-amber-500/[0.07] text-amber-100",
-  info: "border-violet-500/25 bg-violet-500/[0.07] text-violet-100",
+  info: "border-brand-500/25 bg-brand-500/[0.07] text-brand-100",
 };
 
 export function Alert({ tone = "error", title, children, action, className }: AlertProps) {

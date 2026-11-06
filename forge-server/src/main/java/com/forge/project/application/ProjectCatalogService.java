@@ -37,6 +37,12 @@ class ProjectCatalogService implements ProjectCatalog {
 
   @Override
   @Transactional(readOnly = true)
+  public List<ProjectSnapshot> listOwned(UUID ownerId) {
+    return projects.findAllOwned(ownerId).stream().map(Project::snapshot).toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public ProjectSnapshot get(UUID projectId) {
     return projects
         .findById(projectId)

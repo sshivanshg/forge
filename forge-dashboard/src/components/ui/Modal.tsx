@@ -44,7 +44,7 @@ export function Modal({ open, onClose, title, description, children, footer }: M
               type="button"
               onClick={onClose}
               aria-label="Close dialog"
-              className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none"
+              className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
             >
               <X className="size-4" />
             </button>

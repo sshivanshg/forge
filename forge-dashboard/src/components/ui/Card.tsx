@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cx } from "./cx";
 
 export function Card({ className, ...rest }: ComponentProps<"div">) {
-  return <div className={cx("rounded-xl border border-white/[0.08] bg-zinc-900/40", className)} {...rest} />;
+  return <div className={cx("rounded-lg border border-white/[0.07] bg-ink-900/70", className)} {...rest} />;
 }
 
 interface CardHeaderProps {

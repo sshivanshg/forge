@@ -77,13 +77,15 @@ Validation errors add `"errors": [{"field": "password", "message": "must be 10 t
 | `POST /projects` | `{name, slug?, repoOwner, repoName, branch?, rootDir?, buildType?, port?, healthCheckPath?, autoDeploy?}` | `201 Project` · `409 SLUG_TAKEN` · `400 VALIDATION_FAILED` |
 | `GET /projects` | page params | `Page<Project>` (only your own) |
 | `GET /projects/{id}` | — | `Project` · `404` if missing **or not yours** |
-| `PATCH /projects/{id}` | any create field except `slug` (null = unchanged) | `Project` |
+| `PATCH /projects/{id}` | any create field except `slug`, plus `replicas` (1–3) and `rollout` (`BLUE_GREEN` \| `CANARY`); null = unchanged | `Project` |
 | `DELETE /projects/{id}` | — | `204` (containers are stopped first) |
 | `GET /projects/{id}/env` | — | `[{key, valuePreview, updatedAt}]` (masked: `po••••••`) |
 | `PUT /projects/{id}/env` | `{vars: {KEY: "value"}}` (upsert) | `204` + `X-Forge-Redeploy-Required: true` |
 | `DELETE /projects/{id}/env/{key}` | — | `204` |
 
-`Project = {id, name, slug, repoOwner, repoName, repoUrl, branch, rootDir, buildType, port, healthCheckPath, autoDeploy, liveUrl, liveDeploymentId, createdAt, updatedAt}`
+`Project = {id, name, slug, repoOwner, repoName, repoUrl, branch, rootDir, buildType, port, healthCheckPath, autoDeploy, replicas, rollout, liveUrl, liveDeploymentId, createdAt, updatedAt}`
+
+`replicas` (1–3, default 1) is how many instances each deployment runs behind the proxy; `rollout` (`BLUE_GREEN` default, or `CANARY`) is how a new version takes over traffic. Both are set with `PATCH` only.
 
 ### Deployments (`deployment.api.DeploymentController`)
 
@@ -104,7 +106,7 @@ Validation errors add `"errors": [{"field": "password", "message": "must be 10 t
 {
   "id": "7f3c…", "projectId": "2b1e…",
   "commitSha": "3f2a9c1b0d4e5f60718293a4b5c6d7e8f9012345", "commitMessage": "feat: say hello",
-  "trigger": "WEBHOOK", "status": "FAILED", "failureReason": "UNHEALTHY",
+  "trigger": "WEBHOOK", "status": "FAILED", "trafficPercent": null, "failureReason": "UNHEALTHY",
   "failureDetail": "process exited (ConnectException); container process exited (see the app's last log lines)",
   "imageRef": "forge/hello-node:3f2a9c1b0d4e", "rollbackOfId": null,
   "createdAt": "…", "startedAt": "…", "finishedAt": "…",
@@ -120,6 +122,41 @@ Validation errors add `"errors": [{"field": "password", "message": "must be 10 t
   "evidence": ["Server listening on port 3000"], "createdAt": "…"
 }
 ```
+
+`trafficPercent` is the new version's share of the traffic (0–100) while the deployment is `CANARY`, and `null` in every other status.
+
+### Dashboard insights (`deployment.api.InsightsController`)
+
+Read-only; all scoped to the caller's own projects (`404` for anyone else's, like the endpoints above).
+
+| Method & path | Request | Response |
+|---------------|---------|----------|
+| `GET /deployments/{id}/traffic` | — | `Traffic` · `404` |
+| `GET /projects/{id}/instances` | — | `[Instance]` · `404` |
+| `GET /activity?limit=20` | `limit` 1–100 (out-of-range values are clamped) | `[ActivityItem]`, newest first, across all your projects |
+| `GET /overview` | — | `Overview` |
+
+```json
+// Traffic: cumulative proxy counters for this version since Traefik started (zeros if metrics are unavailable)
+{ "deploymentId": "7f3c…", "requests": 1200, "serverErrors": 6, "errorRate": 0.005,
+  "meanLatencyMs": 12.4, "sampledAt": "…" }
+
+// Instance: one per replica container that is not stopped
+{ "id": "a91d…", "deploymentId": "7f3c…", "replicaIndex": 0, "containerId": "forge-hello-node-7f3c…-0",
+  "address": "http://192.168.64.12:8080", "state": "RUNNING", "startedAt": "…", "trafficWeight": 100 }
+
+// ActivityItem: a Deployment (without timeline) plus its project's name and slug
+{ "id": "7f3c…", "projectId": "2b1e…", "status": "LIVE", "…": "…", "timeline": null,
+  "projectName": "Hello Node", "projectSlug": "hello-node" }
+
+// Overview
+{ "projects": 3, "liveProjects": 2, "deploys7d": 9, "failed7d": 2, "successRate7d": 0.78,
+  "medianDeployMs7d": 41250,
+  "deploysByDay": [ {"date": "2026-10-24", "succeeded": 0, "failed": 0}, …14 days, oldest first… ] }
+```
+
+- **Instance**: `state` is the container's bookkeeping status (`STARTING` or `RUNNING`) from `runtime_instances`; `address` is the internal URL the proxy and health probe use; `startedAt` is when the container was created. `trafficWeight` (0–100) is the share of the project's route its version receives: during a canary the canary's `trafficPercent` and the rest split over the other versions, otherwise an equal share per running version (Traefik's default).
+- **Overview**: "succeeded" means the deployment reached `LIVE` (now `LIVE`, `SUPERSEDED` or `STOPPED`). `deploys7d` counts every deployment created in the last 7 days (any status); `successRate7d` = succeeded / (succeeded + failed), `null` with none finished; `medianDeployMs7d` is the median `finishedAt − startedAt` of the succeeded ones, `null` with none. `deploysByDay` covers the last 14 UTC days, zero-filled.
 
 ### SSE stream example
 

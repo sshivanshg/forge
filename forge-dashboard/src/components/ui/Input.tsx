@@ -3,7 +3,7 @@ import { cx } from "./cx";
 
 const control =
   "block w-full rounded-md border bg-zinc-950/60 px-3 text-sm text-zinc-100 placeholder:text-zinc-600 " +
-  "transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/60 " +
+  "transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/60 " +
   "disabled:opacity-50";
 
 function borderFor(invalid?: boolean) {
@@ -95,8 +95,8 @@ export function Toggle({ id, checked, onChange, label, description, disabled }: 
         onClick={() => onChange(!checked)}
         className={cx(
           "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950",
-          checked ? "bg-violet-600" : "bg-zinc-700",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950",
+          checked ? "bg-brand-600" : "bg-zinc-700",
           disabled && "opacity-50",
         )}
       >

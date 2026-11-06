@@ -51,8 +51,8 @@ export function RunSettingsFields({ values, onChange, idPrefix = "run" }: Props)
               onClick={() => onChange({ replicas: n })}
               className={cx(
                 "h-8 w-11 rounded font-mono text-sm tabular-nums transition-colors",
-                "focus-visible:ring-2 focus-visible:ring-violet-500/60 focus-visible:outline-none",
-                values.replicas === n ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-zinc-100",
+                "focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:outline-none",
+                values.replicas === n ? "bg-brand-600 text-white" : "text-zinc-400 hover:text-zinc-100",
               )}
             >
               {n}
@@ -74,8 +74,8 @@ export function RunSettingsFields({ values, onChange, idPrefix = "run" }: Props)
                 key={option.value}
                 className={cx(
                   "relative flex cursor-pointer flex-col gap-1 rounded-lg border p-3.5 transition-colors",
-                  "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-violet-500/60",
-                  selected ? "border-violet-500/60 bg-violet-500/[0.07]" : "border-white/10 hover:border-white/20",
+                  "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500/60",
+                  selected ? "border-brand-500/60 bg-brand-500/[0.07]" : "border-white/10 hover:border-white/20",
                 )}
               >
                 <input
@@ -90,11 +90,11 @@ export function RunSettingsFields({ values, onChange, idPrefix = "run" }: Props)
                   <span
                     className={cx(
                       "flex size-3.5 items-center justify-center rounded-full border",
-                      selected ? "border-violet-400" : "border-zinc-600",
+                      selected ? "border-brand-400" : "border-zinc-600",
                     )}
                     aria-hidden
                   >
-                    {selected && <span className="size-1.5 rounded-full bg-violet-400" />}
+                    {selected && <span className="size-1.5 rounded-full bg-brand-400" />}
                   </span>
                   {option.title}
                 </span>

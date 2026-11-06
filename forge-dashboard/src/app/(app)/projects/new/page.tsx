@@ -89,7 +89,7 @@ function RepoPicker({
                 className={cx(
                   "flex w-full items-center gap-3 border-b border-white/[0.04] px-4 py-2.5 text-left text-[13px] last:border-0",
                   "focus-visible:bg-white/[0.05] focus-visible:outline-none",
-                  active ? "bg-violet-500/10 text-zinc-50" : "text-zinc-300 hover:bg-white/[0.04]",
+                  active ? "bg-brand-500/10 text-zinc-50" : "text-zinc-300 hover:bg-white/[0.04]",
                 )}
               >
                 <GithubIcon className="size-4 shrink-0 text-zinc-500" />
@@ -99,7 +99,7 @@ function RepoPicker({
                 </span>
                 {r.isPrivate && <Lock className="size-3.5 text-zinc-500" aria-label="Private" />}
                 <span className="hidden font-mono text-xs text-zinc-600 sm:inline">{r.defaultBranch}</span>
-                {active && <Check className="size-4 text-violet-400" aria-hidden />}
+                {active && <Check className="size-4 text-brand-400" aria-hidden />}
               </button>
             );
           })
@@ -239,7 +239,7 @@ export default function NewProjectPage() {
                       aria-pressed={source === s}
                       onClick={() => setSourceChoice(s)}
                       className={cx(
-                        "rounded px-2.5 py-1 font-medium focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none",
+                        "rounded px-2.5 py-1 font-medium focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none",
                         source === s ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300",
                       )}
                     >
@@ -354,7 +354,7 @@ export default function NewProjectPage() {
             aria-expanded={showAdvanced}
             aria-controls="advanced-settings"
             onClick={() => setShowAdvanced((s) => !s)}
-            className="flex w-full items-center justify-between rounded-xl px-5 py-4 text-left focus-visible:ring-2 focus-visible:ring-violet-500/70 focus-visible:outline-none"
+            className="flex w-full items-center justify-between rounded-xl px-5 py-4 text-left focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
           >
             <span>
               <span className="block text-sm font-semibold text-zinc-100">Build &amp; runtime</span>
