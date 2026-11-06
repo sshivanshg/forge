@@ -30,6 +30,15 @@ public interface DeploymentRepository extends JpaRepository<Deployment, UUID> {
           + " com.forge.deployment.DeploymentStatus.CANARY)")
   boolean anotherInProgress(UUID projectId, UUID excludeId);
 
+  /** Newest first, across several projects (the caller's). */
+  @Query("select d from Deployment d where d.projectId in :projectIds order by d.createdAt desc")
+  List<Deployment> findRecent(Collection<UUID> projectIds, Pageable pageable);
+
+  @Query(
+      "select d from Deployment d where d.projectId in :projectIds and d.createdAt >= :since"
+          + " order by d.createdAt")
+  List<Deployment> findCreatedSince(Collection<UUID> projectIds, java.time.Instant since);
+
   @Query("select d from Deployment d where d.status = com.forge.deployment.DeploymentStatus.LIVE")
   List<Deployment> findLive();
 

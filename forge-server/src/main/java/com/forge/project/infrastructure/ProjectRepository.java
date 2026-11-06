@@ -18,6 +18,9 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
   @Query("select p from Project p where p.ownerId = :ownerId")
   Page<Project> findAllOwned(UUID ownerId, Pageable pageable);
 
+  @Query("select p from Project p where p.ownerId = :ownerId order by p.createdAt desc")
+  List<Project> findAllOwned(UUID ownerId);
+
   boolean existsBySlug(String slug);
 
   @Query(

@@ -101,4 +101,16 @@ public class RuntimeInstanceRecord {
   public Status status() {
     return status;
   }
+
+  public UUID id() {
+    return id;
+  }
+
+  public String internalUrl() {
+    return internalUrl;
+  }
+
+  public Instant createdAt() {
+    return createdAt;
+  }
 }

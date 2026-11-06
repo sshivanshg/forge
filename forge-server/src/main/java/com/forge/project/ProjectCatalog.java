@@ -15,6 +15,9 @@ public interface ProjectCatalog {
    */
   ProjectSnapshot getOwned(UUID projectId, UUID ownerId);
 
+  /** Every project of {@code ownerId}, newest first. */
+  List<ProjectSnapshot> listOwned(UUID ownerId);
+
   /**
    * @throws com.forge.shared.error.NotFoundException if missing
    */
