@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import { DOCS } from "@/components/site/docs-content";
 import { DocsNav, type NavGroup } from "@/components/site/DocsNav";
 
@@ -10,19 +11,22 @@ for (const d of DOCS) {
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 md:grid-cols-[200px_1fr]">
-      <aside className="md:sticky md:top-20 md:h-[calc(100vh-6rem)] md:overflow-y-auto">
-        <details className="rounded-lg border border-white/[0.08] p-3 md:hidden">
-          <summary className="cursor-pointer text-sm text-zinc-300">Browse the docs</summary>
-          <div className="mt-4">
+    <div className="mx-auto grid max-w-[1200px] md:grid-cols-[240px_1fr]">
+      <aside className="border-b border-gray-alpha-400 md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:overflow-y-auto md:border-b-0 md:border-r">
+        <details className="group px-4 py-3 sm:px-6 md:hidden">
+          <summary className="focus-ring flex cursor-pointer list-none items-center justify-between rounded-md text-label-14 font-medium text-gray-1000 [&::-webkit-details-marker]:hidden">
+            Browse the docs
+            <ChevronDown className="size-4 text-gray-900 transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <div className="mt-4 pb-2">
             <DocsNav groups={groups} />
           </div>
         </details>
-        <div className="hidden md:block">
+        <div className="scrollbar-thin hidden px-4 py-8 md:block">
           <DocsNav groups={groups} />
         </div>
       </aside>
-      <div className="min-w-0">{children}</div>
+      <div className="min-w-0 px-4 py-10 sm:px-6 md:px-10 md:py-12">{children}</div>
     </div>
   );
 }

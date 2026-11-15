@@ -17,7 +17,7 @@ export function TriggerLabel({ trigger }: { trigger: DeploymentTrigger }) {
   const { label, Icon } = TRIGGERS[trigger];
   return (
     <span className="inline-flex items-center gap-1.5">
-      <Icon className="size-3.5 text-zinc-500" aria-hidden />
+      <Icon className="size-4 text-gray-900" aria-hidden />
       {label}
     </span>
   );

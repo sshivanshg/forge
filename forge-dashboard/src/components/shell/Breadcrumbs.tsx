@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
@@ -49,26 +48,25 @@ export function Breadcrumbs({ pathname }: { pathname: string }) {
 
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">
-      <ol className="flex min-w-0 items-center gap-1 text-[13px]">
-        <li className="hidden shrink-0 text-zinc-500 sm:block">
-          <Link href="/overview" className="rounded px-1 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none">
-            Forge
-          </Link>
-        </li>
+      <ol className="flex min-w-0 items-center gap-1 text-label-14">
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1;
           return (
             <li key={i} className={last ? "flex min-w-0 items-center gap-1" : "hidden min-w-0 items-center gap-1 sm:flex"}>
-              <ChevronRight className={i === 0 ? "hidden size-3.5 shrink-0 text-zinc-700 sm:block" : "size-3.5 shrink-0 text-zinc-700"} aria-hidden />
+              {i > 0 && (
+                <svg viewBox="0 0 24 24" className="size-5 shrink-0 text-gray-alpha-500" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+                  <path d="M16.88 3.549 7.12 20.451" />
+                </svg>
+              )}
               {c.href && !last ? (
                 <Link
                   href={c.href}
-                  className={`truncate rounded px-1 text-zinc-500 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none ${c.mono ? "font-mono text-xs" : ""}`}
+                  className={`truncate rounded-md px-1.5 py-1 text-gray-900 hover:bg-gray-alpha-200 hover:text-gray-1000 focus-ring ${c.mono ? "font-mono text-label-13" : ""}`}
                 >
                   {c.label}
                 </Link>
               ) : (
-                <span aria-current={last ? "page" : undefined} className={`truncate px-1 font-medium text-zinc-100 ${c.mono ? "font-mono text-xs" : ""}`}>
+                <span aria-current={last ? "page" : undefined} className={`truncate px-1.5 font-medium text-gray-1000 ${c.mono ? "font-mono text-label-13" : ""}`}>
                   {c.label}
                 </span>
               )}

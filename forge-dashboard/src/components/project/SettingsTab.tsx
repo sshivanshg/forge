@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import {
   BuildSettingsFields,
   validateBuildSettings,
@@ -10,12 +10,24 @@ import {
 import { RunSettingsFields, type RunSettingsValues } from "@/components/project/RunSettingsFields";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardFooter } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import type { Project } from "@/lib/types";
+
+function SettingsSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return (
+    <section className="space-y-5 border-b border-gray-alpha-400 p-6 last-of-type:border-b-0">
+      <div className="space-y-1">
+        <h2 className="text-heading-20 text-gray-1000">{title}</h2>
+        <p className="text-copy-14 text-gray-900">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 interface Props {
   project: Project;
@@ -110,8 +122,7 @@ export function SettingsTab({ project, onUpdated }: Props) {
     <div className="space-y-6">
       <form onSubmit={onSave} noValidate>
         <Card>
-          <CardHeader title="General" description="Changes take effect on the next deployment." />
-          <div className="space-y-5 p-5">
+          <SettingsSection title="General" description="The project's display name and the branch Forge deploys from.">
             {formError && <Alert>{formError}</Alert>}
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Name" htmlFor="set-name" error={errors.name}>
@@ -127,54 +138,60 @@ export function SettingsTab({ project, onUpdated }: Props) {
                 />
               </Field>
             </div>
-            <div className="border-t border-white/[0.06] pt-5">
-              <BuildSettingsFields
-                values={settings}
-                onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
-                errors={errors}
-                idPrefix="set"
-              />
-            </div>
-            <div className="border-t border-white/[0.06] pt-5">
-              <RunSettingsFields values={run} onChange={(patch) => setRun((r) => ({ ...r, ...patch }))} idPrefix="set" />
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-3">
-            {dirty && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setName(project.name);
-                  setBranch(project.branch);
-                  setSettings(toValues(project));
-                  setRun(toRun(project));
-                  setErrors({});
-                }}
-              >
-                Discard
+          </SettingsSection>
+          <SettingsSection title="Build and Deployment" description="How Forge builds the image and checks that it is healthy.">
+            <BuildSettingsFields
+              values={settings}
+              onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+              errors={errors}
+              idPrefix="set"
+            />
+          </SettingsSection>
+          <SettingsSection title="Scaling and Rollout" description="How many instances run and how new versions replace them.">
+            <RunSettingsFields values={run} onChange={(patch) => setRun((r) => ({ ...r, ...patch }))} idPrefix="set" />
+          </SettingsSection>
+          <CardFooter>
+            <span>Changes take effect on the next deployment.</span>
+            <div className="flex items-center gap-2">
+              {dirty && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setName(project.name);
+                    setBranch(project.branch);
+                    setSettings(toValues(project));
+                    setRun(toRun(project));
+                    setErrors({});
+                  }}
+                >
+                  Discard
+                </Button>
+              )}
+              <Button type="submit" size="sm" variant="primary" loading={saving} disabled={!dirty}>
+                Save
               </Button>
-            )}
-            <Button type="submit" variant="primary" loading={saving} disabled={!dirty}>
-              Save changes
-            </Button>
-          </div>
+            </div>
+          </CardFooter>
         </Card>
       </form>
 
-      <Card className="border-red-500/25">
-        <CardHeader title={<span className="text-red-300">Danger zone</span>} />
-        <div className="flex flex-wrap items-center justify-between gap-4 p-5">
-          <div>
-            <p className="text-[13px] font-medium text-zinc-200">Delete this project</p>
-            <p className="mt-0.5 text-[13px] text-zinc-500">
-              Stops the running app, frees its URL and removes all deployments, logs and variables.
-            </p>
-          </div>
-          <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+      <section className="rounded-lg border border-red-400 bg-background-100" aria-labelledby="danger-heading">
+        <div className="space-y-1 p-6">
+          <h2 id="danger-heading" className="text-heading-20 text-gray-1000">
+            Delete Project
+          </h2>
+          <p className="text-copy-14 text-gray-900">
+            Stops the running app, frees its URL and removes all deployments, logs and variables.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-lg border-t border-red-400 bg-red-100 px-6 py-3">
+          <span className="text-copy-14 text-red-900">This action is not reversible. Please be certain.</span>
+          <Button size="sm" variant="danger" onClick={() => setDeleteOpen(true)}>
             Delete project
           </Button>
         </div>
-      </Card>
+      </section>
 
       <ConfirmDialog
         open={deleteOpen}
@@ -193,7 +210,7 @@ export function SettingsTab({ project, onUpdated }: Props) {
         <Field
           label={
             <>
-              Type <code className="rounded bg-white/[0.06] px-1 font-mono text-zinc-100">{project.slug}</code> to confirm
+              Type <code className="rounded-sm bg-gray-100 px-1 font-mono text-gray-1000">{project.slug}</code> to confirm
             </>
           }
           htmlFor="confirm-slug"

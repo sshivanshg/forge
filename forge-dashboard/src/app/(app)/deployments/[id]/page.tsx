@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, CircleStop, Undo2 } from "lucide-react";
+import { ArrowUpRight, CircleStop, GitBranch, GitCommitHorizontal, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -12,7 +12,9 @@ import { TriggerLabel } from "@/components/deployment/TriggerLabel";
 import { useBreadcrumbs } from "@/components/shell/Breadcrumbs";
 import { LogTerminal, StreamIndicator, type TerminalLine } from "@/components/LogTerminal";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Button, buttonClass } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -186,10 +188,9 @@ export default function DeploymentPage() {
   if (!d || !status) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-4 w-56" />
-        <Skeleton className="h-8 w-96 max-w-full" />
-        <Skeleton className="h-28 rounded-xl" />
-        <Skeleton className="h-[420px] rounded-xl" />
+        <Skeleton className="h-10 w-96 max-w-full" />
+        <Skeleton className="h-72 rounded-lg" />
+        <Skeleton className="h-[420px] rounded-lg" />
       </div>
     );
   }
@@ -207,30 +208,15 @@ export default function DeploymentPage() {
     d.trigger !== "RECOVERY";
   const steps = usedCanary({ status, failureReason, timeline: d.timeline }) || willCanary ? ALL_PIPELINE_STEPS : PIPELINE_STEPS;
 
+  const host = p?.liveUrl.replace(/^https?:\/\//, "");
+  const duration = d.startedAt ? durationBetween(d.startedAt, running ? null : d.finishedAt) : "—";
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusBadge status={status} />
-            {isLiveNow && <span className="text-xs font-medium text-emerald-400">Serving traffic</span>}
-            {status === "FAILED" && failureReason && <span className="text-xs font-medium text-red-300">{FAILURE_LABEL[failureReason]}</span>}
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight break-words text-zinc-50 sm:text-[22px]">{deploymentTitle(d)}</h1>
-        </div>
-
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="min-w-0 text-heading-32 break-words text-gray-1000">{deploymentTitle(d)}</h1>
         <div className="flex flex-wrap gap-2">
-          {status === "LIVE" && p && (
-            <a
-              href={p.liveUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:outline-none"
-            >
-              Visit <ArrowUpRight className="size-4" aria-hidden />
-            </a>
-          )}
           {canCancel(status) && (
             <Button variant="secondary" onClick={() => setConfirmCancel(true)} icon={<CircleStop className="size-4" aria-hidden />}>
               Cancel
@@ -241,63 +227,101 @@ export default function DeploymentPage() {
               Roll back to this
             </Button>
           )}
+          {status === "LIVE" && p && (
+            <a href={p.liveUrl} target="_blank" rel="noreferrer" className={buttonClass("primary", "md")}>
+              Visit <ArrowUpRight className="size-4" aria-hidden />
+            </a>
+          )}
         </div>
       </div>
 
-      {/* Facts */}
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.07] sm:grid-cols-3 lg:grid-cols-5">
-        {[
-          {
-            k: "Commit",
-            v: commitUrl ? (
-              <a href={commitUrl} target="_blank" rel="noreferrer" className="font-mono hover:text-zinc-50 hover:underline">
-                {shortSha(d.commitSha)}
-              </a>
+      {/* Summary */}
+      <Card>
+        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <div className="flex aspect-[16/10] flex-col items-center justify-center gap-2 rounded-md border border-gray-alpha-400 bg-background-200 px-4 text-center">
+            {isLiveNow && host ? (
+              <p className="max-w-full truncate font-mono text-label-14 text-gray-1000">{host}</p>
             ) : (
-              <span className="font-mono">{d.commitSha ? shortSha(d.commitSha) : "resolving…"}</span>
-            ),
-          },
-          { k: "Branch", v: <span className="font-mono">{p?.branch ?? "—"}</span> },
-          { k: "Trigger", v: <TriggerLabel trigger={d.trigger} /> },
-          { k: "Created", v: <span title={absoluteTime(d.createdAt)}>{relativeTime(d.createdAt)}</span> },
-          {
-            k: running ? "Running for" : "Duration",
-            v: <span className="font-mono tabular">{d.startedAt ? durationBetween(d.startedAt, running ? null : d.finishedAt) : "—"}</span>,
-          },
-        ].map((f) => (
-          <div key={f.k} className="bg-ink-900 px-4 py-3">
-            <dt className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{f.k}</dt>
-            <dd className="mt-1 truncate text-[13px] text-zinc-200">{f.v}</dd>
+              <p className="text-copy-14 text-gray-900">{status === "FAILED" ? "No preview — the deployment failed." : "Preview appears once the deployment is live."}</p>
+            )}
           </div>
-        ))}
-      </dl>
-      {d.rollbackOfId && (
-        <Link href={`/deployments/${d.rollbackOfId}`} className="-mt-3 inline-flex items-center gap-1 text-[13px] text-brand-400 hover:text-brand-300">
-          <Undo2 className="size-3.5" aria-hidden /> {d.trigger === "RECOVERY" ? "Recovery of" : "Rollback of"}{" "}
-          <span className="font-mono">{d.rollbackOfId.slice(0, 8)}</span>
-        </Link>
-      )}
 
-      {/* Pipeline */}
-      <section className="rounded-lg border border-white/[0.07] bg-ink-900 p-4 sm:p-5" aria-labelledby="pipeline-heading">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 id="pipeline-heading" className="text-[13px] font-semibold text-zinc-200">
-            Pipeline
-          </h2>
-          {p && <span className="text-[11px] text-zinc-500">{p.rollout === "CANARY" ? "Canary rollout" : "Blue-green rollout"} · {p.replicas}× replicas</span>}
+          <dl className="grid content-start gap-x-6 gap-y-5 sm:grid-cols-2">
+            <div>
+              <dt className="text-label-13 text-gray-900">Status</dt>
+              <dd className="mt-1.5 flex flex-wrap items-center gap-2">
+                <StatusBadge status={status} />
+                {isLiveNow && <Badge tone="green" size="sm">Serving traffic</Badge>}
+                {status === "FAILED" && failureReason && <Badge tone="red" size="sm">{FAILURE_LABEL[failureReason]}</Badge>}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-label-13 text-gray-900">{running ? "Running for" : "Duration"}</dt>
+              <dd className="mt-1.5 text-label-14 text-gray-1000 tabular">{duration}</dd>
+            </div>
+            <div>
+              <dt className="text-label-13 text-gray-900">Created</dt>
+              <dd className="mt-1.5 flex flex-wrap items-center gap-x-2 text-label-14 text-gray-1000">
+                <span title={absoluteTime(d.createdAt)}>{relativeTime(d.createdAt)}</span>
+                <span className="text-gray-900">
+                  <TriggerLabel trigger={d.trigger} />
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-label-13 text-gray-900">Deployment</dt>
+              <dd className="mt-1.5 font-mono text-label-14 text-gray-1000">{d.id.slice(0, 8)}</dd>
+            </div>
+            {isLiveNow && p && host && (
+              <div className="sm:col-span-2">
+                <dt className="text-label-13 text-gray-900">Domains</dt>
+                <dd className="mt-1.5 text-label-14">
+                  <a href={p.liveUrl} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 rounded-sm font-mono text-gray-1000 hover:underline focus-ring">
+                    <span className="truncate">{host}</span>
+                    <ArrowUpRight className="size-4 shrink-0 text-gray-900" aria-hidden />
+                  </a>
+                </dd>
+              </div>
+            )}
+            <div className="sm:col-span-2">
+              <dt className="text-label-13 text-gray-900">Source</dt>
+              <dd className="mt-1.5 space-y-1 text-label-14 text-gray-1000">
+                <p className="flex items-center gap-1.5">
+                  <GitBranch className="size-4 shrink-0 text-gray-900" aria-hidden />
+                  <span className="truncate font-mono">{p?.branch ?? "—"}</span>
+                </p>
+                <p className="flex min-w-0 items-center gap-1.5">
+                  <GitCommitHorizontal className="size-4 shrink-0 text-gray-900" aria-hidden />
+                  {commitUrl ? (
+                    <a href={commitUrl} target="_blank" rel="noreferrer" className="shrink-0 rounded-sm font-mono hover:underline focus-ring">
+                      {shortSha(d.commitSha)}
+                    </a>
+                  ) : (
+                    <span className="shrink-0 font-mono">{d.commitSha ? shortSha(d.commitSha) : "resolving…"}</span>
+                  )}
+                  {d.commitMessage && <span className="truncate text-gray-900">{d.commitMessage.split("\n")[0]}</span>}
+                </p>
+              </dd>
+            </div>
+            {d.rollbackOfId && (
+              <div className="sm:col-span-2">
+                <dt className="text-label-13 text-gray-900">{d.trigger === "RECOVERY" ? "Recovery of" : "Rollback of"}</dt>
+                <dd className="mt-1.5 text-label-14">
+                  <Link href={`/deployments/${d.rollbackOfId}`} className="inline-flex items-center gap-1.5 rounded-sm font-mono text-gray-1000 hover:underline focus-ring">
+                    <Undo2 className="size-4 text-gray-900" aria-hidden />
+                    {d.rollbackOfId.slice(0, 8)}
+                  </Link>
+                </dd>
+              </div>
+            )}
+          </dl>
         </div>
-        <PipelineStepper
-          status={status}
-          stoppedAt={stoppedStep(d, status, lastStep)}
-          enteredAt={enteredAt}
-          finishedAt={d.finishedAt}
-          skipped={d.trigger === "ROLLBACK" || d.trigger === "RECOVERY" ? ["BUILDING"] : []}
-          steps={steps}
-        />
         {status === "CANARY" && d.trafficPercent !== null && (
-          <TrafficSplit percent={d.trafficPercent} className="mt-5 border-t border-white/[0.06] pt-5" />
+          <div className="rounded-b-lg border-t border-gray-alpha-400 bg-background-200 px-6 py-5">
+            <TrafficSplit percent={d.trafficPercent} />
+          </div>
         )}
-      </section>
+      </Card>
 
       {/* Failure + agent */}
       {status === "FAILED" && (
@@ -305,20 +329,45 @@ export default function DeploymentPage() {
           <AgentInsightCard key={d.id} deploymentId={d.id} />
           {d.failureDetail && (
             <Alert title={failureReason ? FAILURE_LABEL[failureReason] : "Deployment failed"}>
-              <pre className="mt-1 font-mono text-xs break-words whitespace-pre-wrap">{d.failureDetail}</pre>
+              <pre className="mt-1 font-mono text-label-13 break-words whitespace-pre-wrap">{d.failureDetail}</pre>
             </Alert>
           )}
         </div>
       )}
 
-      {/* Logs */}
-      <LogTerminal
-        className="h-[560px] max-h-[75vh]"
-        title="Build & deploy log"
-        lines={terminalLines}
-        status={<StreamIndicator state={stream.state} />}
-        empty={running ? "Waiting for the first log line…" : "No log output was recorded."}
-      />
+      {/* Deployment details */}
+      <section aria-labelledby="details-heading" className="space-y-3">
+        <h2 id="details-heading" className="text-heading-20 text-gray-1000">
+          Deployment Details
+        </h2>
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-gray-alpha-400 bg-background-200 px-4 py-2.5">
+            <span className="text-label-14 font-medium text-gray-1000">Pipeline</span>
+            {p && (
+              <span className="text-label-13 text-gray-900">
+                {p.rollout === "CANARY" ? "Canary rollout" : "Blue-green rollout"} · {p.replicas}× replicas
+              </span>
+            )}
+          </div>
+          <PipelineStepper
+            layout="vertical"
+            status={status}
+            stoppedAt={stoppedStep(d, status, lastStep)}
+            enteredAt={enteredAt}
+            finishedAt={d.finishedAt}
+            skipped={d.trigger === "ROLLBACK" || d.trigger === "RECOVERY" ? ["BUILDING"] : []}
+            steps={steps}
+          />
+        </Card>
+
+        <LogTerminal
+          className="h-[560px] max-h-[75vh]"
+          title="Build & deploy logs"
+          lines={terminalLines}
+          status={<StreamIndicator state={stream.state} />}
+          empty={running ? "Waiting for the first log line…" : "No log output was recorded."}
+        />
+      </section>
 
       <ConfirmDialog
         open={confirmCancel}

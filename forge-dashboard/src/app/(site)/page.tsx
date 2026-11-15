@@ -13,9 +13,11 @@ import {
   Webhook,
 } from "lucide-react";
 import { buttonClass } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { PipelineHero } from "@/components/site/PipelineHero";
 import { GITHUB_URL } from "@/components/site/links";
 import { GithubIcon } from "@/components/ui/GithubIcon";
+import { cx } from "@/components/ui/cx";
 
 export const metadata: Metadata = {
   title: { absolute: "Forge — push code, get a live URL" },
@@ -31,44 +33,56 @@ const RESULTS = [
   { value: "131", unit: "tests", label: "unit, integration and architecture" },
 ];
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
-  return <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand-400">{children}</p>;
+/** Small section label in quiet label type. */
+function Kicker({ children }: { children: React.ReactNode }) {
+  return <p className="text-label-13 font-medium text-gray-900">{children}</p>;
+}
+
+function SectionHeading({ id, kicker, children, className }: { id: string; kicker: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <Kicker>{kicker}</Kicker>
+      <h2 id={id} className="mt-3 text-heading-32 text-gray-1000 md:text-heading-40">
+        {children}
+      </h2>
+    </div>
+  );
 }
 
 function DiagnosisCard() {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-ink-900 shadow-2xl shadow-black/40">
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+    <div className="overflow-hidden rounded-lg border border-gray-alpha-400 bg-background-100 shadow-menu">
+      <div className="flex items-center justify-between border-b border-gray-alpha-400 px-4 py-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4 text-brand-400" aria-hidden />
-          <span className="text-[13px] font-medium text-zinc-100">Forge Agent</span>
+          <Sparkles className="size-4 text-gray-1000" aria-hidden />
+          <span className="text-label-14 font-medium text-gray-1000">Forge Agent</span>
         </div>
-        <span className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 font-mono text-[10px] text-red-300">
+        <Badge tone="red" size="sm" className="font-mono">
           FAILED · UNHEALTHY
-        </span>
+        </Badge>
       </div>
       <div className="space-y-4 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded bg-brand-500/15 px-2 py-0.5 font-mono text-[11px] text-brand-300">PORT_MISMATCH</span>
-          <span className="font-mono text-[11px] text-zinc-500">confidence HIGH · engine rules</span>
+          <span className="rounded-sm bg-gray-alpha-200 px-1.5 py-0.5 font-mono text-label-12 text-gray-1000">PORT_MISMATCH</span>
+          <span className="font-mono text-label-12 text-gray-900">confidence HIGH · engine rules</span>
         </div>
-        <p className="text-[14px] leading-relaxed text-zinc-200">
+        <p className="text-copy-14 text-gray-1000">
           The app listens on port 3000 but the project expects port 8080, so health checks could not reach it.
         </p>
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">Evidence</p>
-          <pre className="mt-1.5 overflow-x-auto rounded-md bg-black/40 px-3 py-2 font-mono text-[12px] text-zinc-300">
-            <span className="text-zinc-600">runtime │ </span>Server listening on port 3000
+          <p className="text-label-12 font-medium text-gray-900">Evidence</p>
+          <pre className="mt-1.5 overflow-x-auto rounded-md border border-gray-alpha-400 bg-background-200 px-3 py-2 font-mono text-label-12 text-gray-1000">
+            <span className="text-gray-900">runtime │ </span>Server listening on port 3000
           </pre>
         </div>
-        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/[0.06] p-3">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-emerald-400">Suggested fix</p>
-          <p className="mt-1 text-[13px] leading-relaxed text-zinc-300">
+        <div className="rounded-md border border-gray-alpha-400 p-3">
+          <p className="text-label-12 font-medium text-gray-1000">Suggested fix</p>
+          <p className="mt-1 text-copy-13 text-gray-900">
             Either change the project&apos;s port to 3000 in Settings, or make the app read the PORT environment variable (Forge
             sets PORT=8080).
           </p>
         </div>
-        <p className="text-[12px] text-zinc-500">The previous version kept serving the whole time.</p>
+        <p className="text-copy-13 text-gray-900">The previous version kept serving the whole time.</p>
       </div>
     </div>
   );
@@ -140,230 +154,234 @@ const STACK = [
   { name: "Next.js 16", note: "this dashboard and site" },
 ];
 
+const TIMELINE: [string, "muted" | "default" | "canary" | "live"][] = [
+  ["QUEUED", "muted"],
+  ["BUILDING", "default"],
+  ["DEPLOYING", "default"],
+  ["HEALTH_CHECKING", "default"],
+  ["CANARY 20%", "canary"],
+  ["CANARY 50%", "canary"],
+  ["LIVE 100%", "live"],
+];
+
+const TIMELINE_TONE = {
+  muted: "text-gray-900",
+  default: "text-gray-1000",
+  canary: "text-blue-900",
+  live: "text-green-900",
+};
+
+/** Vercel-style framed section: hairline top border inside the bordered page column. */
+const frame = "border-t border-gray-alpha-400";
+
 export default function LandingPage() {
   return (
-    <>
+    <div className="mx-auto max-w-[1200px] border-gray-alpha-400 min-[1200px]:border-x">
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-white/[0.06]">
-        <div className="dot-grid ember-edge absolute inset-0 [mask-image:linear-gradient(to_bottom,black,transparent)]" aria-hidden />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:pt-24">
+      <section className="relative overflow-hidden">
+        <div
+          className="grid-backdrop absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]"
+          aria-hidden
+        />
+        <div className="relative px-4 pb-16 pt-20 text-center sm:px-6 md:pb-20 md:pt-28">
           <div className="site-rise">
-            <Eyebrow>Deployment and orchestration platform</Eyebrow>
-            <h1 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-tight text-zinc-50 sm:text-5xl lg:text-[56px]">
-              Push code.
+            <Badge tone="gray">Deployment and orchestration platform</Badge>
+            <h1 className="mx-auto mt-6 max-w-4xl text-heading-48 text-gray-1000 md:text-heading-72">
+              Push code. Get a live URL.
               <br />
-              Get a live URL.
-              <br />
-              <span className="text-brand-400">Never a broken one.</span>
+              <span className="text-gray-900">Never a broken one.</span>
             </h1>
-            <p className="mt-6 max-w-md text-[15px] leading-relaxed text-zinc-400">
+            <p className="mx-auto mt-6 max-w-xl text-copy-16 text-gray-900 md:text-copy-20">
               Forge builds your repository into a container, rolls it out with blue-green or canary traffic, and rolls back on its own
               when the new version is worse.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/login" className={buttonClass("primary", "md")}>
+            <div className="mt-10 flex flex-wrap justify-center gap-3">
+              <Link href="/login" className={buttonClass("primary", "lg")}>
                 Try the demo <ArrowRight className="size-4" aria-hidden />
               </Link>
-              <Link href="/docs" className={buttonClass("secondary", "md")}>
+              <Link href="/docs" className={buttonClass("secondary", "lg")}>
                 <BookOpen className="size-4" aria-hidden /> Read the docs
               </Link>
             </div>
           </div>
-          <div className="site-rise" style={{ animationDelay: "150ms" }}>
+          <div className="site-rise mx-auto mt-16 max-w-3xl" style={{ animationDelay: "150ms" }}>
             <PipelineHero />
           </div>
         </div>
       </section>
 
       {/* Results */}
-      <section aria-labelledby="results-h" className="border-b border-white/[0.06] bg-ink-900/40">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <h2 id="results-h" className="font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-            Measured on real deploys
-          </h2>
-          <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-5">
-            {RESULTS.map((r) => (
-              <div key={r.label}>
-                <dt className="sr-only">{r.label}</dt>
-                <dd>
-                  <span className="tabular text-3xl font-semibold tracking-tight text-zinc-50">{r.value}</span>
-                  <span className="ml-1 font-mono text-[12px] text-brand-400">{r.unit}</span>
-                  <p className="mt-1 text-[12.5px] leading-snug text-zinc-500">{r.label}</p>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+      <section aria-labelledby="results-h" className={frame}>
+        <h2 id="results-h" className="sr-only">
+          Measured on real deploys
+        </h2>
+        <dl className="grid grid-cols-2 gap-px bg-gray-alpha-400 md:grid-cols-5">
+          {RESULTS.map((r, i) => (
+            <div key={r.label} className={cx("bg-background-100 px-6 py-8", i === RESULTS.length - 1 && "col-span-2 md:col-span-1")}>
+              <dt className="sr-only">{r.label}</dt>
+              <dd>
+                <span className="tabular text-heading-32 text-gray-1000">{r.value}</span>
+                <span className="ml-1 font-mono text-label-13 text-gray-900">{r.unit}</span>
+                <p className="mt-2 text-copy-13 text-gray-900">{r.label}</p>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="border-t border-gray-alpha-400 px-6 py-3 text-label-13 text-gray-900">Measured on real deploys.</p>
       </section>
 
       {/* Rollouts */}
-      <section id="features" aria-labelledby="rollouts-h" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
-        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-          <div>
-            <Eyebrow>Rollouts</Eyebrow>
-            <h2 id="rollouts-h" className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50">
+      <section id="features" aria-labelledby="rollouts-h" className={cx(frame, "scroll-mt-16")}>
+        <div className="grid gap-px bg-gray-alpha-400 lg:grid-cols-2">
+          <div className="bg-background-100 px-6 py-14 md:px-12 md:py-20">
+            <SectionHeading id="rollouts-h" kicker="Rollouts">
               Blue-green and canary, with automatic rollback
-            </h2>
-            <p className="mt-4 text-[15px] leading-relaxed text-zinc-400">
+            </SectionHeading>
+            <p className="mt-5 text-copy-16 text-gray-900">
               The new version starts next to the live one and must pass its health check before it gets any traffic. With canary on,
               it then takes 20%, then 50%, for 15 seconds each, while Forge compares its 5xx rate and latency with the live version
               over the same window.
             </p>
-            <ul className="mt-6 space-y-3 text-[14px] text-zinc-300">
+            <ul className="mt-8 space-y-3 text-copy-14 text-gray-1000">
               <li className="flex gap-3">
-                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-cyan-400" />
+                <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-gray-1000" aria-hidden />
                 More than 5 points more errors, or 2× and 200 ms slower: traffic goes back to the live version at once.
               </li>
               <li className="flex gap-3">
-                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-cyan-400" />A release with 30% failing pages was rolled back at 20%;
-                visitors saw 3 errors in 574 requests.
+                <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-gray-1000" aria-hidden />A release with 30% failing pages
+                was rolled back at 20%; visitors saw 3 errors in 574 requests.
               </li>
               <li className="flex gap-3">
-                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-brand-400" />A failed version never replaces a working one.
+                <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-gray-1000" aria-hidden />A failed version never replaces a
+                working one.
               </li>
             </ul>
           </div>
-          <div className="rounded-xl border border-white/[0.08] bg-ink-900 p-5 font-mono text-[12px]">
-            <p className="text-zinc-500">deployment timeline</p>
-            <ol className="mt-4 space-y-2.5">
-              {[
-                ["QUEUED", "zinc"],
-                ["BUILDING", "brand"],
-                ["DEPLOYING", "brand"],
-                ["HEALTH_CHECKING", "brand"],
-                ["CANARY 20%", "cyan"],
-                ["CANARY 50%", "cyan"],
-                ["LIVE 100%", "emerald"],
-              ].map(([s, c], i) => (
-                <li key={s} className="flex items-center gap-3">
-                  <span className="tabular w-5 text-zinc-600">{i + 1}</span>
-                  <span
-                    className={
-                      c === "cyan"
-                        ? "text-cyan-300"
-                        : c === "emerald"
-                          ? "text-emerald-300"
-                          : c === "brand"
-                            ? "text-brand-300"
-                            : "text-zinc-400"
-                    }
-                  >
-                    {s}
-                  </span>
-                  <span className="h-px flex-1 bg-white/[0.06]" />
-                </li>
-              ))}
-            </ol>
-            <p className="mt-5 border-t border-white/[0.06] pt-3 text-zinc-500">
-              or <span className="text-red-300">FAILED(CANARY_REGRESSION)</span> → live version keeps 100%
-            </p>
+          <div className="flex items-center bg-background-200 px-6 py-14 md:px-12">
+            <div className="w-full overflow-hidden rounded-lg border border-gray-alpha-400 bg-background-100 font-mono text-label-13">
+              <p className="border-b border-gray-alpha-400 px-4 py-2.5 text-gray-900">deployment timeline</p>
+              <ol className="space-y-2.5 p-4">
+                {TIMELINE.map(([s, tone], i) => (
+                  <li key={s} className="flex items-center gap-3">
+                    <span className="tabular w-5 text-gray-900">{i + 1}</span>
+                    <span className={TIMELINE_TONE[tone]}>{s}</span>
+                    <span className="h-px flex-1 bg-gray-alpha-400" />
+                    {tone === "live" && <span className="size-2 rounded-full bg-green-700" aria-hidden />}
+                    {tone === "canary" && <span className="size-2 rounded-full bg-blue-700" aria-hidden />}
+                  </li>
+                ))}
+              </ol>
+              <p className="border-t border-gray-alpha-400 px-4 py-3 text-gray-900">
+                or <span className="text-red-900">FAILED(CANARY_REGRESSION)</span> → live version keeps 100%
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Agent */}
-      <section aria-labelledby="agent-h" className="border-y border-white/[0.06] bg-ink-900/40">
-        <div className="mx-auto grid max-w-6xl gap-12 px-4 py-24 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:items-center">
-          <div>
-            <Eyebrow>Forge Agent</Eyebrow>
-            <h2 id="agent-h" className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50">
+      <section aria-labelledby="agent-h" className={frame}>
+        <div className="grid gap-px bg-gray-alpha-400 lg:grid-cols-2">
+          <div className="bg-background-100 px-6 py-14 md:px-12 md:py-20">
+            <SectionHeading id="agent-h" kicker="Forge Agent">
               A failed deploy comes with a reason and a fix
-            </h2>
-            <p className="mt-4 text-[15px] leading-relaxed text-zinc-400">
+            </SectionHeading>
+            <p className="mt-5 text-copy-16 text-gray-900">
               When a deploy fails, the agent collects the logs, the failure detail and the project&apos;s config, redacts every
               secret, and diagnoses the cause. It uses Claude when an API key is set, and 13 built-in rules offline. Any LLM error
               falls back to the rules.
             </p>
-            <ul className="mt-6 flex flex-wrap gap-1.5" aria-label="Diagnosis rules">
+            <ul className="mt-8 flex flex-wrap gap-1.5" aria-label="Diagnosis rules">
               {RULES.map((r) => (
-                <li key={r} className="rounded border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 font-mono text-[10.5px] text-zinc-400">
+                <li key={r} className="rounded-sm border border-gray-alpha-400 px-1.5 py-0.5 font-mono text-label-12 text-gray-900">
                   {r}
                 </li>
               ))}
             </ul>
           </div>
-          <DiagnosisCard />
+          <div className="flex items-center bg-background-200 px-6 py-14 md:px-12">
+            <div className="w-full">
+              <DiagnosisCard />
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Small features */}
-      <section aria-labelledby="more-h" className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-        <Eyebrow>Runtime</Eyebrow>
-        <h2 id="more-h" className="mt-3 max-w-xl text-3xl font-semibold tracking-tight text-zinc-50">
+      <section aria-labelledby="more-h" className={frame}>
+        <SectionHeading id="more-h" kicker="Runtime" className="px-6 py-14 md:px-12 md:py-16">
           The parts you would otherwise script yourself
-        </h2>
-        <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+        </SectionHeading>
+        <div className="grid gap-px border-t border-gray-alpha-400 bg-gray-alpha-400 sm:grid-cols-2 lg:grid-cols-3">
           {SMALL_FEATURES.map((f) => (
-            <div key={f.title} className="border-t border-white/[0.08] pt-5">
-              <f.icon className="size-5 text-brand-400" aria-hidden />
-              <h3 className="mt-3 text-[15px] font-medium text-zinc-100">{f.title}</h3>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-400">{f.body}</p>
+            <div key={f.title} className="bg-background-100 p-6 md:p-8">
+              <div className="flex items-center gap-2">
+                <f.icon className="size-4 text-gray-1000" aria-hidden />
+                <h3 className="text-heading-16 text-gray-1000">{f.title}</h3>
+              </div>
+              <p className="mt-2 text-copy-14 text-gray-900">{f.body}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" aria-labelledby="how-h" className="scroll-mt-20 border-y border-white/[0.06] bg-ink-900/40">
-        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-          <Eyebrow>How it works</Eyebrow>
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-            <h2 id="how-h" className="max-w-xl text-3xl font-semibold tracking-tight text-zinc-50">
-              From git push to live in five steps
-            </h2>
-            <Link href="/architecture" className="inline-flex items-center gap-1.5 text-[13px] text-brand-300 hover:text-brand-200">
-              See the architecture <ArrowRight className="size-3.5" aria-hidden />
-            </Link>
-          </div>
-          <ol className="mt-12 grid gap-6 md:grid-cols-5">
-            {STEPS.map((s) => (
-              <li key={s.n} className="relative">
-                <span className="font-mono text-[12px] text-brand-400">{s.n}</span>
-                <h3 className="mt-2 text-[15px] font-medium text-zinc-100">{s.title}</h3>
-                <p className="mt-2 text-[13px] leading-relaxed text-zinc-400">{s.body}</p>
-              </li>
-            ))}
-          </ol>
+      <section id="how-it-works" aria-labelledby="how-h" className={cx(frame, "scroll-mt-16")}>
+        <div className="flex flex-wrap items-end justify-between gap-4 px-6 py-14 md:px-12 md:py-16">
+          <SectionHeading id="how-h" kicker="How it works" className="max-w-xl">
+            From git push to live in five steps
+          </SectionHeading>
+          <Link href="/architecture" className={buttonClass("secondary", "md")}>
+            See the architecture <ArrowRight className="size-4" aria-hidden />
+          </Link>
         </div>
+        <ol className="grid gap-px border-t border-gray-alpha-400 bg-gray-alpha-400 sm:grid-cols-2 md:grid-cols-5">
+          {STEPS.map((s) => (
+            <li key={s.n} className="bg-background-100 p-6">
+              <span className="font-mono text-label-13 text-gray-900">{s.n}</span>
+              <h3 className="mt-3 text-heading-16 text-gray-1000">{s.title}</h3>
+              <p className="mt-2 text-copy-14 text-gray-900">{s.body}</p>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {/* Stack */}
-      <section aria-labelledby="stack-h" className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-        <Eyebrow>Stack</Eyebrow>
-        <h2 id="stack-h" className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50">
+      <section aria-labelledby="stack-h" className={frame}>
+        <SectionHeading id="stack-h" kicker="Stack" className="px-6 py-14 md:px-12 md:py-16">
           Built on boring, proven parts
-        </h2>
-        <ul className="mt-10 grid grid-cols-1 border-l border-t border-white/[0.06] sm:grid-cols-2 lg:grid-cols-3">
+        </SectionHeading>
+        <ul className="grid gap-px border-t border-gray-alpha-400 bg-gray-alpha-400 sm:grid-cols-2 lg:grid-cols-3">
           {STACK.map((s) => (
-            <li key={s.name} className="border-b border-r border-white/[0.06] p-5">
-              <p className="font-mono text-[14px] text-zinc-100">{s.name}</p>
-              <p className="mt-1 text-[13px] text-zinc-500">{s.note}</p>
+            <li key={s.name} className="bg-background-100 p-6">
+              <p className="font-mono text-label-14 font-medium text-gray-1000">{s.name}</p>
+              <p className="mt-1 text-copy-14 text-gray-900">{s.note}</p>
             </li>
           ))}
         </ul>
       </section>
 
       {/* CTA */}
-      <section aria-labelledby="cta-h" className="relative overflow-hidden border-t border-white/[0.06]">
-        <div className="ember-edge absolute inset-0" aria-hidden />
-        <div className="relative mx-auto max-w-6xl px-4 py-24 text-center sm:px-6">
-          <h2 id="cta-h" className="text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
+      <section aria-labelledby="cta-h" className={cx(frame, "relative overflow-hidden")}>
+        <div className="grid-backdrop absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_70%)]" aria-hidden />
+        <div className="relative px-6 py-20 text-center md:py-28">
+          <h2 id="cta-h" className="text-heading-40 text-gray-1000 md:text-heading-48">
             Deploy something.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-[15px] text-zinc-400">Sign in with the demo account and deploy a sample app.</p>
+          <p className="mx-auto mt-4 max-w-md text-copy-16 text-gray-900">Sign in with the demo account and deploy a sample app.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/login" className={buttonClass("primary", "md")}>
+            <Link href="/login" className={buttonClass("primary", "lg")}>
               Try the demo <ArrowRight className="size-4" aria-hidden />
             </Link>
-            <a href={GITHUB_URL} className={buttonClass("secondary", "md")}>
+            <a href={GITHUB_URL} className={buttonClass("secondary", "lg")}>
               <GithubIcon className="size-4" /> View source
             </a>
           </div>
-          <p className="mt-6 inline-flex items-center gap-1.5 font-mono text-[11px] text-zinc-600">
+          <p className="mt-6 inline-flex items-center gap-1.5 font-mono text-label-12 text-gray-900">
             <GitBranch className="size-3" aria-hidden /> github.com/sshivanshg/forge
           </p>
         </div>
       </section>
-    </>
+    </div>
   );
 }

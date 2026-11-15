@@ -1,10 +1,11 @@
 "use client";
 
-import { FileText, KeyRound, Pencil, Plus, Rocket, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, FileText, KeyRound, Pencil, Plus, Rocket, Trash2, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button, iconButtonClass } from "@/components/ui/Button";
+import { Card, CardFooter, CardHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -60,6 +61,15 @@ export function EnvironmentTab({ project, onDeploy, deploying }: Props) {
   const [editValue, setEditValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<EnvVar | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set());
+
+  const toggleReveal = (k: string) =>
+    setRevealed((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
 
   async function save(vars: Record<string, string>, done: () => void) {
     setSaving(true);
@@ -130,7 +140,7 @@ export function EnvironmentTab({ project, onDeploy, deploying }: Props) {
           tone="info"
           title="Redeploy to apply"
           action={
-            <Button size="sm" variant="primary" onClick={onDeploy} loading={deploying} icon={<Rocket className="size-3.5" aria-hidden />}>
+            <Button size="sm" variant="primary" onClick={onDeploy} loading={deploying} icon={<Rocket className="size-4" aria-hidden />}>
               Redeploy
             </Button>
           }
@@ -139,133 +149,58 @@ export function EnvironmentTab({ project, onDeploy, deploying }: Props) {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader
-          icon={<KeyRound className="size-4" aria-hidden />}
-          title="Environment variables"
-          description="Encrypted at rest and injected at runtime. Values are never shown again after saving."
-        />
-
-        {env.error && !vars ? (
-          <div className="p-5">
-            <Alert action={<Button size="sm" onClick={env.reload}>Retry</Button>}>{env.error.message}</Alert>
-          </div>
-        ) : !vars ? (
-          <div className="space-y-2 p-5">
-            {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="h-9" />
-            ))}
-          </div>
-        ) : vars.length === 0 ? (
-          <p className="px-5 py-8 text-center text-[13px] text-zinc-500">No variables yet. Add your first one below.</p>
-        ) : (
-          <ul className="divide-y divide-white/[0.05]">
-            {vars.map((v) => (
-              <li key={v.key} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-                <code className="min-w-[10rem] font-mono text-[13px] font-medium text-zinc-100">{v.key}</code>
-                {editing === v.key ? (
-                  <form
-                    className="flex min-w-0 flex-1 items-center gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      save({ [v.key]: editValue }, () => setEditing(null));
-                    }}
-                  >
-                    <Input
-                      aria-label={`New value for ${v.key}`}
-                      className="font-mono"
-                      autoFocus
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      placeholder="New value"
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
-                    <Button type="submit" size="sm" variant="primary" loading={saving}>
-                      Save
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditing(null)} aria-label="Cancel edit">
-                      <X className="size-4" />
-                    </Button>
-                  </form>
-                ) : (
-                  <>
-                    <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-zinc-500">{v.valuePreview}</span>
-                    <span className="hidden text-xs text-zinc-600 sm:inline">{relativeTime(v.updatedAt)}</span>
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Edit ${v.key}`}
-                        onClick={() => {
-                          setEditing(v.key);
-                          setEditValue("");
-                        }}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" aria-label={`Delete ${v.key}`} onClick={() => setDeleteTarget(v)} className="hover:text-red-400">
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <form onSubmit={onAdd} className="space-y-4 border-t border-white/[0.06] bg-white/[0.015] p-5" noValidate>
-          <div className="flex items-center justify-between">
-            <p className="text-[13px] font-medium text-zinc-300">Add variables</p>
-            <button
-              type="button"
-              onClick={() => {
-                setMode((m) => (m === "single" ? "bulk" : "single"));
-                setFormErrors({});
-              }}
-              className="inline-flex items-center gap-1.5 rounded text-xs text-zinc-500 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
-            >
-              <FileText className="size-3.5" aria-hidden />
-              {mode === "single" ? "Paste a .env file" : "Add one at a time"}
-            </button>
-          </div>
-          {mode === "single" ? (
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] sm:items-start">
-              <Field label="Key" htmlFor="env-key" error={formErrors.key}>
-                <Input
-                  id="env-key"
-                  className="font-mono"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value.toUpperCase().replace(/\s/g, "_"))}
-                  invalid={!!formErrors.key}
-                  placeholder="DATABASE_URL"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </Field>
-              <Field label="Value" htmlFor="env-value" error={formErrors.vars ?? formErrors.value}>
-                <Input
-                  id="env-value"
-                  className="font-mono"
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder="postgres://…"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </Field>
-              <Button type="submit" variant="primary" className="sm:mt-[26px]" loading={saving} icon={<Plus className="size-4" aria-hidden />}>
-                Add
+      <form onSubmit={onAdd} noValidate>
+        <Card>
+          <CardHeader
+            title="Environment Variables"
+            description="Encrypted at rest and injected at runtime. Values are never shown again after saving."
+            actions={
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setMode((m) => (m === "single" ? "bulk" : "single"));
+                  setFormErrors({});
+                }}
+                icon={<FileText className="size-4" aria-hidden />}
+              >
+                {mode === "single" ? "Paste a .env file" : "Add one at a time"}
               </Button>
-            </div>
-          ) : (
-            <>
+            }
+          />
+          <div className="p-6">
+            {mode === "single" ? (
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:items-start">
+                <Field label="Key" htmlFor="env-key" error={formErrors.key}>
+                  <Input
+                    id="env-key"
+                    className="font-mono"
+                    value={key}
+                    onChange={(e) => setKey(e.target.value.toUpperCase().replace(/\s/g, "_"))}
+                    invalid={!!formErrors.key}
+                    placeholder="DATABASE_URL"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </Field>
+                <Field label="Value" htmlFor="env-value" error={formErrors.vars ?? formErrors.value}>
+                  <Input
+                    id="env-value"
+                    className="font-mono"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder="postgres://…"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </Field>
+              </div>
+            ) : (
               <Field label=".env contents" htmlFor="env-bulk" error={formErrors.bulk ?? formErrors.vars}>
                 <Textarea
                   id="env-bulk"
                   rows={6}
-                  className="font-mono text-[13px]"
+                  className="font-mono text-label-13"
                   value={bulk}
                   onChange={(e) => setBulk(e.target.value)}
                   invalid={!!formErrors.bulk}
@@ -273,14 +208,119 @@ export function EnvironmentTab({ project, onDeploy, deploying }: Props) {
                   spellCheck={false}
                 />
               </Field>
-              <div className="flex justify-end">
-                <Button type="submit" variant="primary" loading={saving} icon={<Plus className="size-4" aria-hidden />}>
-                  Save all
-                </Button>
-              </div>
-            </>
-          )}
-        </form>
+            )}
+          </div>
+          <CardFooter>
+            <span>A new deployment is required for changes to take effect.</span>
+            <Button type="submit" size="sm" variant="primary" loading={saving} icon={<Plus className="size-4" aria-hidden />}>
+              {mode === "single" ? "Add" : "Save all"}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
+
+      <Card className="overflow-hidden">
+        {env.error && !vars ? (
+          <div className="p-6">
+            <Alert action={<Button size="sm" onClick={env.reload}>Retry</Button>}>{env.error.message}</Alert>
+          </div>
+        ) : !vars ? (
+          <div className="space-y-2 p-6">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-9" />
+            ))}
+          </div>
+        ) : vars.length === 0 ? (
+          <div className="flex flex-col items-center px-6 py-12 text-center">
+            <KeyRound className="size-4 text-gray-900" aria-hidden />
+            <p className="mt-3 text-heading-14 text-gray-1000">No environment variables</p>
+            <p className="mt-1 text-copy-14 text-gray-900">Add your first one above.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-alpha-400">
+            {vars.map((v) => {
+              const shown = revealed.has(v.key);
+              return (
+                <li
+                  key={v.key}
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-6 py-3 transition-colors hover:bg-gray-alpha-100 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto]"
+                >
+                  <div className="min-w-0">
+                    <code className="block truncate font-mono text-label-14 font-medium text-gray-1000">{v.key}</code>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Badge tone="gray" size="sm">
+                        Production
+                      </Badge>
+                      <span className="text-label-12 text-gray-900">Updated {relativeTime(v.updatedAt)}</span>
+                    </div>
+                  </div>
+                  {editing === v.key ? (
+                    <form
+                      className="col-span-2 flex min-w-0 items-center gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        save({ [v.key]: editValue }, () => setEditing(null));
+                      }}
+                    >
+                      <Input
+                        aria-label={`New value for ${v.key}`}
+                        className="font-mono"
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        placeholder="New value"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <Button type="submit" size="sm" variant="primary" loading={saving}>
+                        Save
+                      </Button>
+                      <button type="button" className={iconButtonClass} onClick={() => setEditing(null)} aria-label="Cancel edit">
+                        <X className="size-4" />
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="hidden min-w-0 items-center gap-1 md:flex">
+                        <span className="truncate font-mono text-label-14 text-gray-900">{shown ? v.valuePreview : "••••••••••••"}</span>
+                        <button
+                          type="button"
+                          className={iconButtonClass}
+                          aria-label={shown ? `Hide ${v.key} preview` : `Show ${v.key} preview`}
+                          aria-pressed={shown}
+                          onClick={() => toggleReveal(v.key)}
+                        >
+                          {shown ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </div>
+                      <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          className={iconButtonClass}
+                          aria-label={`Edit ${v.key}`}
+                          onClick={() => {
+                            setEditing(v.key);
+                            setEditValue("");
+                          }}
+                        >
+                          <Pencil className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className={iconButtonClass}
+                          aria-label={`Delete ${v.key}`}
+                          onClick={() => setDeleteTarget(v)}
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
 
       <ConfirmDialog

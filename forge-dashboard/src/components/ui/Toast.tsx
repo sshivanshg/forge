@@ -22,9 +22,9 @@ interface ToastApi {
 const ToastContext = createContext<ToastApi | null>(null);
 
 const icons = {
-  success: <CheckCircle2 className="size-4 text-emerald-400" aria-hidden />,
-  error: <XCircle className="size-4 text-red-400" aria-hidden />,
-  info: <Info className="size-4 text-brand-400" aria-hidden />,
+  success: <CheckCircle2 className="size-4 text-green-700" aria-hidden />,
+  error: <XCircle className="size-4 text-red-700" aria-hidden />,
+  info: <Info className="size-4 text-blue-700" aria-hidden />,
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -65,19 +65,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             role={t.tone === "error" ? "alert" : "status"}
             className={cx(
-              "toast-in pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-lg border bg-zinc-900/95 px-4 py-3 shadow-2xl shadow-black/50 backdrop-blur",
-              t.tone === "error" ? "border-red-500/30" : "border-white/10",
+              "toast-in pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl bg-background-100 px-4 py-3.5 shadow-modal",
             )}
           >
             <div className="mt-0.5">{icons[t.tone]}</div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-medium text-zinc-100">{t.title}</p>
-              {t.description && <p className="mt-0.5 text-xs break-words text-zinc-400">{t.description}</p>}
+              <p className="text-label-14 font-medium text-gray-1000">{t.title}</p>
+              {t.description && <p className="mt-0.5 text-copy-13 break-words text-gray-900">{t.description}</p>}
             </div>
             <button
               type="button"
               onClick={() => dismiss(t.id)}
-              className="rounded p-0.5 text-zinc-500 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
+              className="rounded-sm p-0.5 text-gray-900 hover:text-gray-1000 focus-ring"
               aria-label="Dismiss notification"
             >
               <X className="size-3.5" />

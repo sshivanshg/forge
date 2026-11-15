@@ -42,7 +42,7 @@ export default function ActivityPage() {
     <>
       <PageHeader title="Activity" description="Every deployment across your projects, newest first." />
 
-      <div role="radiogroup" aria-label="Filter by status" className="mb-4 flex gap-1 overflow-x-auto pb-1">
+      <div role="radiogroup" aria-label="Filter by status" className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-md border border-gray-alpha-400 bg-background-100 p-1">
         {FILTERS.map((f) => {
           const count = items?.filter(f.test).length;
           const on = f.id === filter;
@@ -54,12 +54,12 @@ export default function ActivityPage() {
               aria-checked={on}
               onClick={() => setFilter(f.id)}
               className={cx(
-                "flex h-8 shrink-0 items-center gap-2 rounded-md border px-3 text-[13px] transition-colors focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none",
-                on ? "border-white/15 bg-white/[0.07] text-zinc-50" : "border-transparent text-zinc-500 hover:text-zinc-200",
+                "flex h-7 shrink-0 items-center gap-2 rounded-sm px-2.5 text-label-14 transition-colors focus-ring",
+                on ? "bg-gray-alpha-200 text-gray-1000" : "text-gray-900 hover:bg-gray-alpha-100 hover:text-gray-1000",
               )}
             >
               {f.label}
-              {count !== undefined && <span className={cx("font-mono text-[11px] tabular", on ? "text-zinc-400" : "text-zinc-600")}>{count}</span>}
+              {count !== undefined && <span className={cx("text-label-12 tabular", on ? "text-gray-1000" : "text-gray-900")}>{count}</span>}
             </button>
           );
         })}
@@ -68,7 +68,7 @@ export default function ActivityPage() {
       {activity.error && !items ? (
         <Alert action={<Button size="sm" onClick={activity.reload}>Retry</Button>}>{activity.error.message}</Alert>
       ) : !shown ? (
-        <div className="rounded-lg border border-white/[0.07] bg-ink-900">
+        <div className="overflow-hidden rounded-lg border border-gray-alpha-400 bg-background-100">
           <ActivitySkeleton rows={8} />
         </div>
       ) : shown.length === 0 ? (
@@ -79,7 +79,7 @@ export default function ActivityPage() {
           action={filter !== "all" ? <Button size="sm" onClick={() => setFilter("all")}>Show all</Button> : undefined}
         />
       ) : (
-        <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-white/[0.07] bg-ink-900">
+        <ul className="divide-y divide-gray-alpha-400 overflow-hidden rounded-lg border border-gray-alpha-400 bg-background-100">
           {shown.map((d) => (
             <ActivityRow key={d.id} d={d} />
           ))}

@@ -77,10 +77,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
-        {isRegister ? "Create your account" : "Sign in to Forge"}
-      </h1>
-      <p className="mt-1.5 text-sm text-zinc-500">
+      <h1 className="text-center text-heading-32 text-gray-1000">{isRegister ? "Create your account" : "Log in to Forge"}</h1>
+      <p className="mt-2 text-center text-copy-14 text-gray-900">
         {isRegister ? "Deploy your first app in a couple of minutes." : "Your projects, deploys and agent diagnoses."}
       </p>
 
@@ -91,6 +89,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           <Field label="Name" htmlFor="displayName" error={fieldErrors.displayName}>
             <Input
               id="displayName"
+              className="h-10"
               autoComplete="name"
               required
               value={displayName}
@@ -103,6 +102,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <Field label="Email" htmlFor="email" error={fieldErrors.email}>
           <Input
             id="email"
+            className="h-10"
             type="email"
             autoComplete="email"
             required
@@ -121,6 +121,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         >
           <Input
             id="password"
+            className="h-10"
             type="password"
             autoComplete={isRegister ? "new-password" : "current-password"}
             required
@@ -130,34 +131,34 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           />
         </Field>
 
-        <Button type="submit" variant="primary" className="w-full" loading={submitting}>
-          {isRegister ? "Create account" : "Sign in"}
+        <Button type="submit" variant="primary" size="lg" className="w-full" loading={submitting}>
+          {isRegister ? "Create account" : "Continue with email"}
         </Button>
       </form>
 
       {!isRegister && HAS_DEMO && (
-        <div className="mt-5">
-          <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-zinc-600">
-            <span className="h-px flex-1 bg-white/[0.06]" />
+        <div className="mt-6">
+          <div className="flex items-center gap-3 text-label-12 text-gray-900">
+            <span className="h-px flex-1 bg-gray-alpha-400" />
             or
-            <span className="h-px flex-1 bg-white/[0.06]" />
+            <span className="h-px flex-1 bg-gray-alpha-400" />
           </div>
-          <Button type="button" className="mt-5 w-full" onClick={signInAsDemo} loading={demoSubmitting}>
+          <Button type="button" variant="secondary" size="lg" className="mt-6 w-full" onClick={signInAsDemo} loading={demoSubmitting}>
             Try the demo account
           </Button>
-          <p className="mt-2.5 text-center font-mono text-[11px] text-zinc-500">
+          <p className="mt-3 text-center font-mono text-label-12 text-gray-900">
             {DEMO_EMAIL} · {DEMO_PASSWORD}
           </p>
         </div>
       )}
 
-      <p className="mt-6 text-center text-[13px] text-zinc-500">
-        {isRegister ? "Already have an account? " : "New to Forge? "}
+      <p className="mt-8 text-center text-copy-14 text-gray-900">
+        {isRegister ? "Already have an account? " : "Don't have an account? "}
         <Link
           href={isRegister ? "/login" : "/register"}
-          className="font-medium text-brand-400 hover:text-brand-300 focus-visible:underline focus-visible:outline-none"
+          className="rounded-sm font-medium text-blue-900 hover:underline focus-ring"
         >
-          {isRegister ? "Sign in" : "Create an account"}
+          {isRegister ? "Log in" : "Sign up"}
         </Link>
       </p>
     </div>

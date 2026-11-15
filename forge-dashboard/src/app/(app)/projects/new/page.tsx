@@ -56,15 +56,15 @@ function RepoPicker({
   if (repos.error) return <Alert>{repos.error.message}</Alert>;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-white/10">
-      <div className="relative border-b border-white/[0.06]">
-        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-500" aria-hidden />
+    <div className="overflow-hidden rounded-lg border border-gray-alpha-400">
+      <div className="relative border-b border-gray-alpha-400">
+        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-900" aria-hidden />
         <input
           aria-label="Filter repositories"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Search your repositories…"
-          className="h-10 w-full bg-transparent pr-3 pl-9 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+          className="h-10 w-full bg-transparent pr-3 pl-9 text-label-14 text-gray-1000 placeholder:text-gray-700 focus:outline-none"
         />
       </div>
       <div role="listbox" aria-label="Repositories" className="scrollbar-thin max-h-72 overflow-y-auto">
@@ -75,7 +75,7 @@ function RepoPicker({
             ))}
           </div>
         ) : visible.length === 0 ? (
-          <p className="px-4 py-6 text-center text-[13px] text-zinc-500">No repositories match.</p>
+          <p className="px-4 py-6 text-center text-copy-14 text-gray-900">No repositories match.</p>
         ) : (
           visible.map((r) => {
             const active = selected?.fullName === r.fullName;
@@ -87,19 +87,19 @@ function RepoPicker({
                 aria-selected={active}
                 onClick={() => onSelect(r)}
                 className={cx(
-                  "flex w-full items-center gap-3 border-b border-white/[0.04] px-4 py-2.5 text-left text-[13px] last:border-0",
-                  "focus-visible:bg-white/[0.05] focus-visible:outline-none",
-                  active ? "bg-brand-500/10 text-zinc-50" : "text-zinc-300 hover:bg-white/[0.04]",
+                  "flex h-12 w-full items-center gap-3 border-b border-gray-alpha-400 px-4 text-left text-label-14 last:border-0",
+                  "focus-visible:bg-gray-alpha-100 focus-visible:outline-none",
+                  active ? "bg-gray-alpha-200 text-gray-1000" : "text-gray-1000 hover:bg-gray-alpha-100",
                 )}
               >
-                <GithubIcon className="size-4 shrink-0 text-zinc-500" />
+                <GithubIcon className="size-4 shrink-0 text-gray-1000" />
                 <span className="min-w-0 flex-1 truncate">
-                  <span className="text-zinc-500">{r.owner}/</span>
-                  {r.name}
+                  <span className="text-gray-900">{r.owner}/</span>
+                  <span className="font-medium">{r.name}</span>
                 </span>
-                {r.isPrivate && <Lock className="size-3.5 text-zinc-500" aria-label="Private" />}
-                <span className="hidden font-mono text-xs text-zinc-600 sm:inline">{r.defaultBranch}</span>
-                {active && <Check className="size-4 text-brand-400" aria-hidden />}
+                {r.isPrivate && <Lock className="size-3.5 text-gray-900" aria-label="Private" />}
+                <span className="hidden font-mono text-label-12 text-gray-900 sm:inline">{r.defaultBranch}</span>
+                {active && <Check className="size-4 text-gray-1000" aria-hidden />}
               </button>
             );
           })
@@ -210,7 +210,7 @@ export default function NewProjectPage() {
     <div className="mx-auto max-w-3xl">
       <PageHeader
         eyebrow={
-          <Link href="/projects" className="inline-flex items-center gap-1 text-[13px] text-zinc-500 hover:text-zinc-200">
+          <Link href="/projects" className="inline-flex items-center gap-1 rounded-sm text-label-13 text-gray-900 hover:text-gray-1000 focus-ring">
             <ArrowLeft className="size-3.5" aria-hidden /> Projects
           </Link>
         }
@@ -231,7 +231,7 @@ export default function NewProjectPage() {
             }
             actions={
               connected ? (
-                <div className="flex rounded-md border border-white/10 p-0.5 text-xs" role="group" aria-label="Repository source">
+                <div className="flex rounded-md border border-gray-alpha-400 bg-background-100 p-0.5" role="group" aria-label="Repository source">
                   {(["github", "manual"] as const).map((s) => (
                     <button
                       key={s}
@@ -239,8 +239,8 @@ export default function NewProjectPage() {
                       aria-pressed={source === s}
                       onClick={() => setSourceChoice(s)}
                       className={cx(
-                        "rounded px-2.5 py-1 font-medium focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none",
-                        source === s ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300",
+                        "h-7 rounded-sm px-2.5 text-label-13 font-medium transition-colors focus-ring",
+                        source === s ? "bg-gray-alpha-200 text-gray-1000" : "text-gray-900 hover:text-gray-1000",
                       )}
                     >
                       {s === "github" ? "My repos" : "Enter manually"}
@@ -250,7 +250,7 @@ export default function NewProjectPage() {
               ) : undefined
             }
           />
-          <div className="space-y-5 p-5">
+          <div className="space-y-5 p-6">
             {connection.loading ? (
               <Skeleton className="h-10" />
             ) : source === "github" ? (
@@ -263,7 +263,7 @@ export default function NewProjectPage() {
                     suggestName(r.name);
                   }}
                 />
-                {errors.repoOwner && <p className="text-xs text-red-400" role="alert">{errors.repoOwner}</p>}
+                {errors.repoOwner && <p className="text-label-13 text-red-900" role="alert">{errors.repoOwner}</p>}
                 {repo && <BranchSelect key={repo.fullName} repo={repo} value={branch} onChange={setBranch} error={errors.branch} />}
               </>
             ) : (
@@ -271,7 +271,7 @@ export default function NewProjectPage() {
                 {!connected && connection.data && (
                   <Alert tone="info">
                     Connect GitHub in{" "}
-                    <Link href="/settings" className="underline underline-offset-2 hover:text-white">
+                    <Link href="/settings" className="font-medium underline underline-offset-2">
                       Settings
                     </Link>{" "}
                     to pick from your repositories (and use private ones).
@@ -317,7 +317,7 @@ export default function NewProjectPage() {
 
         <Card>
           <CardHeader title="Project" description="How the project shows up in Forge and in its URL." />
-          <div className="grid gap-5 p-5 sm:grid-cols-2">
+          <div className="grid gap-5 p-6 sm:grid-cols-2">
             <Field label="Name" htmlFor="name" error={errors.name}>
               <Input
                 id="name"
@@ -354,19 +354,19 @@ export default function NewProjectPage() {
             aria-expanded={showAdvanced}
             aria-controls="advanced-settings"
             onClick={() => setShowAdvanced((s) => !s)}
-            className="flex w-full items-center justify-between rounded-xl px-5 py-4 text-left focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
+            className="flex w-full items-center justify-between gap-4 rounded-lg px-6 py-4 text-left transition-colors hover:bg-gray-alpha-100 focus-ring"
           >
             <span>
-              <span className="block text-sm font-semibold text-zinc-100">Build &amp; runtime</span>
-              <span className="mt-0.5 block text-[13px] text-zinc-500">
+              <span className="block text-heading-16 text-gray-1000">Build and runtime</span>
+              <span className="mt-1 block text-copy-14 text-gray-900">
                 {settings.buildType === "AUTO" ? "Auto-detect" : settings.buildType} · port {settings.port || "?"} · health{" "}
                 {settings.healthCheckPath || "/"} · auto-deploy {settings.autoDeploy ? "on" : "off"}
               </span>
             </span>
-            <ChevronDown className={cx("size-4 text-zinc-500 transition-transform", showAdvanced && "rotate-180")} aria-hidden />
+            <ChevronDown className={cx("size-4 shrink-0 text-gray-900 transition-transform", showAdvanced && "rotate-180")} aria-hidden />
           </button>
           {showAdvanced && (
-            <div id="advanced-settings" className="border-t border-white/[0.06] p-5">
+            <div id="advanced-settings" className="border-t border-gray-alpha-400 p-6">
               <BuildSettingsFields
                 values={settings}
                 onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
@@ -377,8 +377,8 @@ export default function NewProjectPage() {
           )}
         </Card>
 
-        <div className="flex justify-end gap-2">
-          <ButtonLink href="/projects" variant="ghost">
+        <div className="flex justify-end gap-2 border-t border-gray-alpha-400 pt-6">
+          <ButtonLink href="/projects" variant="secondary">
             Cancel
           </ButtonLink>
           <Button type="submit" variant="primary" loading={submitting}>

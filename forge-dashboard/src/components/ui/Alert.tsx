@@ -1,4 +1,4 @@
-import { AlertTriangle, Info } from "lucide-react";
+import { AlertTriangle, Info, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { cx } from "./cx";
 
@@ -10,23 +10,21 @@ interface AlertProps {
   className?: string;
 }
 
+/** Geist "Note": tinted fill, matching border, coloured text. */
 const tones = {
-  error: "border-red-500/25 bg-red-500/[0.07] text-red-200",
-  warning: "border-amber-500/25 bg-amber-500/[0.07] text-amber-100",
-  info: "border-brand-500/25 bg-brand-500/[0.07] text-brand-100",
+  error: { box: "border-red-400 bg-red-100 text-red-900", Icon: XCircle },
+  warning: { box: "border-amber-400 bg-amber-100 text-amber-900", Icon: AlertTriangle },
+  info: { box: "border-blue-400 bg-blue-100 text-blue-900", Icon: Info },
 };
 
 export function Alert({ tone = "error", title, children, action, className }: AlertProps) {
-  const Icon = tone === "info" ? Info : AlertTriangle;
+  const { box, Icon } = tones[tone];
   return (
-    <div
-      role={tone === "error" ? "alert" : "status"}
-      className={cx("flex items-start gap-3 rounded-lg border px-4 py-3 text-[13px]", tones[tone], className)}
-    >
-      <Icon className="mt-0.5 size-4 shrink-0 opacity-80" aria-hidden />
+    <div role={tone === "error" ? "alert" : "status"} className={cx("flex items-start gap-3 rounded-md border px-3 py-2.5 text-copy-14", box, className)}>
+      <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
       <div className="min-w-0 flex-1">
         {title && <p className="font-medium">{title}</p>}
-        {children && <div className={cx("opacity-80", title ? "mt-0.5" : undefined)}>{children}</div>}
+        {children && <div className={title ? "mt-0.5" : undefined}>{children}</div>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

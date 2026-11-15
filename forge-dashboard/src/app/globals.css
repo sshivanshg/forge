@@ -1,64 +1,360 @@
 @import "tailwindcss";
 
+/*
+ * Geist design system tokens (Vercel).
+ * Every colour in the app comes from these scales — never raw zinc/white/hex in components.
+ *
+ *   background-100 / 200   page + raised surfaces
+ *   gray-100 … 1000        solid neutrals (100 = subtle fill, 1000 = primary text)
+ *   gray-alpha-100 … 1000  translucent neutrals (borders, hovers, dividers)
+ *   {blue,red,amber,green,purple,teal}-{100,200,400,700,900}
+ *       100 = tinted background, 200 = hover bg, 400 = border, 700 = solid fill/dot, 900 = text
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Brand: molten ember. Used for primary actions, focus, live accents. */
-  --color-brand-50: #fff6ed;
-  --color-brand-100: #ffead4;
-  --color-brand-200: #ffd0a8;
-  --color-brand-300: #ffae70;
-  --color-brand-400: #ff8a3d;
-  --color-brand-500: #f76b15;
-  --color-brand-600: #dc520b;
-  --color-brand-700: #b63d0c;
-  --color-brand-800: #913212;
-  --color-brand-900: #752b12;
-  --color-brand-950: #3f1307;
+  /* Drop Tailwind's default palette so only Geist tokens exist. */
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
 
-  /* Surfaces: graphite, slightly warm. */
-  --color-ink-950: #0a0a0b;
-  --color-ink-900: #111113;
-  --color-ink-850: #161618;
-  --color-ink-800: #1c1c1f;
-  --color-ink-700: #2a2a2e;
+  --color-background-100: var(--ds-background-100);
+  --color-background-200: var(--ds-background-200);
+
+  --color-gray-100: var(--ds-gray-100);
+  --color-gray-200: var(--ds-gray-200);
+  --color-gray-300: var(--ds-gray-300);
+  --color-gray-400: var(--ds-gray-400);
+  --color-gray-500: var(--ds-gray-500);
+  --color-gray-600: var(--ds-gray-600);
+  --color-gray-700: var(--ds-gray-700);
+  --color-gray-800: var(--ds-gray-800);
+  --color-gray-900: var(--ds-gray-900);
+  --color-gray-1000: var(--ds-gray-1000);
+
+  --color-gray-alpha-100: var(--ds-gray-alpha-100);
+  --color-gray-alpha-200: var(--ds-gray-alpha-200);
+  --color-gray-alpha-300: var(--ds-gray-alpha-300);
+  --color-gray-alpha-400: var(--ds-gray-alpha-400);
+  --color-gray-alpha-500: var(--ds-gray-alpha-500);
+  --color-gray-alpha-600: var(--ds-gray-alpha-600);
+
+  --color-blue-100: var(--ds-blue-100);
+  --color-blue-200: var(--ds-blue-200);
+  --color-blue-400: var(--ds-blue-400);
+  --color-blue-700: var(--ds-blue-700);
+  --color-blue-900: var(--ds-blue-900);
+
+  --color-red-100: var(--ds-red-100);
+  --color-red-200: var(--ds-red-200);
+  --color-red-400: var(--ds-red-400);
+  --color-red-700: var(--ds-red-700);
+  --color-red-900: var(--ds-red-900);
+
+  --color-amber-100: var(--ds-amber-100);
+  --color-amber-200: var(--ds-amber-200);
+  --color-amber-400: var(--ds-amber-400);
+  --color-amber-700: var(--ds-amber-700);
+  --color-amber-900: var(--ds-amber-900);
+
+  --color-green-100: var(--ds-green-100);
+  --color-green-200: var(--ds-green-200);
+  --color-green-400: var(--ds-green-400);
+  --color-green-700: var(--ds-green-700);
+  --color-green-900: var(--ds-green-900);
+
+  --color-purple-100: var(--ds-purple-100);
+  --color-purple-200: var(--ds-purple-200);
+  --color-purple-400: var(--ds-purple-400);
+  --color-purple-700: var(--ds-purple-700);
+  --color-purple-900: var(--ds-purple-900);
+
+  --color-teal-100: var(--ds-teal-100);
+  --color-teal-200: var(--ds-teal-200);
+  --color-teal-400: var(--ds-teal-400);
+  --color-teal-700: var(--ds-teal-700);
+  --color-teal-900: var(--ds-teal-900);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 }
 
+/* Light theme */
 :root {
+  color-scheme: light;
+  --ds-background-100: #ffffff;
+  --ds-background-200: #fafafa;
+
+  --ds-gray-100: #f2f2f2;
+  --ds-gray-200: #ebebeb;
+  --ds-gray-300: #e6e6e6;
+  --ds-gray-400: #eaeaea;
+  --ds-gray-500: #c9c9c9;
+  --ds-gray-600: #a8a8a8;
+  --ds-gray-700: #8f8f8f;
+  --ds-gray-800: #7d7d7d;
+  --ds-gray-900: #666666;
+  --ds-gray-1000: #171717;
+
+  --ds-gray-alpha-100: rgb(0 0 0 / 0.05);
+  --ds-gray-alpha-200: rgb(0 0 0 / 0.08);
+  --ds-gray-alpha-300: rgb(0 0 0 / 0.1);
+  --ds-gray-alpha-400: rgb(0 0 0 / 0.08);
+  --ds-gray-alpha-500: rgb(0 0 0 / 0.21);
+  --ds-gray-alpha-600: rgb(0 0 0 / 0.34);
+
+  --ds-blue-100: #f0f7ff;
+  --ds-blue-200: #e9f4ff;
+  --ds-blue-400: #cae2fd;
+  --ds-blue-700: #0070f3;
+  --ds-blue-900: #0068d6;
+
+  --ds-red-100: #fff0f0;
+  --ds-red-200: #ffebeb;
+  --ds-red-400: #ffd1d2;
+  --ds-red-700: #e5484d;
+  --ds-red-900: #cb2a2f;
+
+  --ds-amber-100: #fff6e5;
+  --ds-amber-200: #fff4cf;
+  --ds-amber-400: #ffdc80;
+  --ds-amber-700: #ffb224;
+  --ds-amber-900: #a35200;
+
+  --ds-green-100: #effbef;
+  --ds-green-200: #eafaeb;
+  --ds-green-400: #c8eec9;
+  --ds-green-700: #45a557;
+  --ds-green-900: #297a3a;
+
+  --ds-purple-100: #faf5fe;
+  --ds-purple-200: #f7f0fd;
+  --ds-purple-400: #ecd9fa;
+  --ds-purple-700: #8e4ec6;
+  --ds-purple-900: #7d3fb3;
+
+  --ds-teal-100: #effefa;
+  --ds-teal-200: #e7f9f5;
+  --ds-teal-400: #b8eae0;
+  --ds-teal-700: #12a594;
+  --ds-teal-900: #067a6e;
+}
+
+/* Dark theme (default — the root layout ships with class="dark") */
+.dark {
   color-scheme: dark;
-  --background: #0a0a0b;
-  --foreground: #e4e4e7;
+  --ds-background-100: #0a0a0a;
+  --ds-background-200: #000000;
+
+  --ds-gray-100: #1a1a1a;
+  --ds-gray-200: #1f1f1f;
+  --ds-gray-300: #292929;
+  --ds-gray-400: #2e2e2e;
+  --ds-gray-500: #454545;
+  --ds-gray-600: #878787;
+  --ds-gray-700: #8f8f8f;
+  --ds-gray-800: #7d7d7d;
+  --ds-gray-900: #a1a1a1;
+  --ds-gray-1000: #ededed;
+
+  --ds-gray-alpha-100: rgb(255 255 255 / 0.06);
+  --ds-gray-alpha-200: rgb(255 255 255 / 0.09);
+  --ds-gray-alpha-300: rgb(255 255 255 / 0.13);
+  --ds-gray-alpha-400: rgb(255 255 255 / 0.14);
+  --ds-gray-alpha-500: rgb(255 255 255 / 0.24);
+  --ds-gray-alpha-600: rgb(255 255 255 / 0.51);
+
+  --ds-blue-100: #0f1b2d;
+  --ds-blue-200: #10233d;
+  --ds-blue-400: #0f3058;
+  --ds-blue-700: #006bff;
+  --ds-blue-900: #52a8ff;
+
+  --ds-red-100: #2a1314;
+  --ds-red-200: #3c1618;
+  --ds-red-400: #671e21;
+  --ds-red-700: #e5484d;
+  --ds-red-900: #ff6166;
+
+  --ds-amber-100: #271700;
+  --ds-amber-200: #341c00;
+  --ds-amber-400: #573300;
+  --ds-amber-700: #ffb224;
+  --ds-amber-900: #f2a20d;
+
+  --ds-green-100: #0b2211;
+  --ds-green-200: #0f2c17;
+  --ds-green-400: #126427;
+  --ds-green-700: #45a557;
+  --ds-green-900: #62c073;
+
+  --ds-purple-100: #1f1126;
+  --ds-purple-200: #2a1534;
+  --ds-purple-400: #4b2766;
+  --ds-purple-700: #8e4ec6;
+  --ds-purple-900: #bf7af0;
+
+  --ds-teal-100: #04201b;
+  --ds-teal-200: #062923;
+  --ds-teal-400: #0a5149;
+  --ds-teal-700: #12a594;
+  --ds-teal-900: #0ac7b4;
+}
+
+/* ---- Geist type scale ---- */
+@utility text-heading-72 {
+  font-size: 72px;
+  line-height: 72px;
+  letter-spacing: -4.32px;
+  font-weight: 600;
+}
+@utility text-heading-64 {
+  font-size: 64px;
+  line-height: 64px;
+  letter-spacing: -3.84px;
+  font-weight: 600;
+}
+@utility text-heading-48 {
+  font-size: 48px;
+  line-height: 56px;
+  letter-spacing: -2.88px;
+  font-weight: 600;
+}
+@utility text-heading-40 {
+  font-size: 40px;
+  line-height: 48px;
+  letter-spacing: -2.4px;
+  font-weight: 600;
+}
+@utility text-heading-32 {
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: -1.28px;
+  font-weight: 600;
+}
+@utility text-heading-24 {
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.96px;
+  font-weight: 600;
+}
+@utility text-heading-20 {
+  font-size: 20px;
+  line-height: 26px;
+  letter-spacing: -0.4px;
+  font-weight: 600;
+}
+@utility text-heading-16 {
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: -0.32px;
+  font-weight: 600;
+}
+@utility text-heading-14 {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.28px;
+  font-weight: 600;
+}
+@utility text-label-14 {
+  font-size: 14px;
+  line-height: 20px;
+}
+@utility text-label-13 {
+  font-size: 13px;
+  line-height: 16px;
+}
+@utility text-label-12 {
+  font-size: 12px;
+  line-height: 16px;
+}
+@utility text-label-11 {
+  font-size: 11px;
+  line-height: 14px;
+}
+@utility text-copy-20 {
+  font-size: 20px;
+  line-height: 30px;
+}
+@utility text-copy-16 {
+  font-size: 16px;
+  line-height: 24px;
+}
+@utility text-copy-14 {
+  font-size: 14px;
+  line-height: 20px;
+}
+@utility text-copy-13 {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* Geist focus ring: 2px page-coloured gap, then 2px blue. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--ds-background-100),
+      0 0 0 4px var(--ds-blue-700);
+  }
+}
+
+/* Geist "material" shadows — borders are drawn with box-shadow so they stack cleanly. */
+@utility shadow-border {
+  box-shadow: 0 0 0 1px var(--ds-gray-alpha-400);
+}
+@utility shadow-menu {
+  box-shadow:
+    0 0 0 1px var(--ds-gray-alpha-400),
+    0 4px 8px -4px rgb(0 0 0 / 0.04),
+    0 16px 24px -8px rgb(0 0 0 / 0.06);
+}
+@utility shadow-modal {
+  box-shadow:
+    0 0 0 1px var(--ds-gray-alpha-400),
+    0 1px 1px rgb(0 0 0 / 0.02),
+    0 8px 16px -4px rgb(0 0 0 / 0.04),
+    0 24px 32px -8px rgb(0 0 0 / 0.06);
 }
 
 html,
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--ds-background-200);
+  color: var(--ds-gray-1000);
 }
 
 body {
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv11";
 }
 
 ::selection {
-  background: rgb(247 107 21 / 0.35);
-}
-
-/* Faint grid + glow behind the auth cards. */
-.auth-backdrop {
-  background-image:
-    radial-gradient(ellipse 60% 50% at 50% 0%, rgb(247 107 21 / 0.14), transparent 70%),
-    linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px);
-  background-size: 100% 100%, 32px 32px, 32px 32px;
+  background: var(--ds-blue-400);
 }
 
 /* Slim scrollbars for log terminals. */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+  scrollbar-color: var(--ds-gray-alpha-500) transparent;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Faint square grid — Vercel's marketing backdrop. */
+.grid-backdrop {
+  background-image:
+    linear-gradient(var(--ds-gray-alpha-200) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ds-gray-alpha-200) 1px, transparent 1px);
+  background-size: 64px 64px;
 }
 
 @keyframes toast-in {
@@ -78,7 +374,7 @@ body {
 @keyframes step-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 var(--glow, rgb(247 107 21 / 0.45));
+    box-shadow: 0 0 0 0 var(--glow, var(--ds-blue-400));
   }
   50% {
     box-shadow: 0 0 0 6px transparent;
@@ -109,21 +405,6 @@ body {
   .animate-spin {
     animation: none !important;
   }
-}
-
-/* Dotted canvas used behind hero sections and empty consoles. */
-.dot-grid {
-  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
-  background-size: 18px 18px;
-}
-
-/* Ember glow at the top edge of a surface. */
-.ember-edge {
-  background-image: radial-gradient(ellipse 70% 120% at 50% -40%, rgb(247 107 21 / 0.18), transparent 60%);
-}
-
-.tabular {
-  font-variant-numeric: tabular-nums;
 }
 
 /* ---- Public site (landing, docs, architecture) ---- */

@@ -36,16 +36,16 @@ export function RuntimeLogsTab({ project }: { project: Project }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[13px] text-zinc-500">
+        <p className="text-copy-14 text-gray-900">
           Live stdout/stderr of the running container
           {project.liveDeploymentId ? "" : " — nothing is deployed yet"}.
         </p>
         <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setLines([])} icon={<Trash2 className="size-3.5" aria-hidden />}>
+          <Button size="sm" variant="ghost" onClick={() => setLines([])} icon={<Trash2 className="size-4" aria-hidden />}>
             Clear
           </Button>
           {ended && (
-            <Button size="sm" onClick={stream.restart} icon={<RotateCw className="size-3.5" aria-hidden />}>
+            <Button size="sm" onClick={stream.restart} icon={<RotateCw className="size-4" aria-hidden />}>
               Reconnect
             </Button>
           )}

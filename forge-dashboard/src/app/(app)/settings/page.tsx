@@ -1,14 +1,16 @@
 "use client";
 
-import { CheckCircle2, Unplug, UserRound } from "lucide-react";
+import { Unplug } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardFooter } from "@/components/ui/Card";
 import { GithubIcon } from "@/components/ui/GithubIcon";
+import { Field, Input } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
@@ -77,55 +79,58 @@ function GithubCard() {
       <Suspense>
         <GithubCallbackToast onConnected={connection.reload} />
       </Suspense>
-      <CardHeader
-        icon={<GithubIcon className="size-4" />}
-        title="GitHub"
-        description="Pick repositories from your account, deploy private repos and auto-deploy on push."
-      />
-      <div className="p-5">
-        {connection.error && !c ? (
-          <Alert action={<Button size="sm" onClick={connection.reload}>Retry</Button>}>{connection.error.message}</Alert>
-        ) : !c ? (
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-5 w-48" />
-            <Skeleton className="h-9 w-36" />
-          </div>
-        ) : c.connected ? (
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
-                <CheckCircle2 className="size-4" aria-hidden />
-              </span>
-              <div>
-                <p className="text-[13px] font-medium text-zinc-100">
-                  Connected as <span className="font-mono">@{c.login}</span>
+      <div className="p-6">
+        <h2 className="text-heading-20 text-gray-1000">GitHub</h2>
+        <p className="mt-3 max-w-xl text-copy-14 text-gray-900">
+          Pick repositories from your account, deploy private repos and auto-deploy on push.
+        </p>
+        <div className="mt-5">
+          {connection.error && !c ? (
+            <Alert action={<Button size="sm" onClick={connection.reload}>Retry</Button>}>{connection.error.message}</Alert>
+          ) : !c ? (
+            <Skeleton className="h-14 w-full" />
+          ) : c.connected ? (
+            <div className="flex items-center gap-3 rounded-md border border-gray-alpha-400 px-4 py-3">
+              <GithubIcon className="size-5 shrink-0 text-gray-1000" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-label-14 font-medium text-gray-1000">
+                  <span className="font-mono">@{c.login}</span>
                 </p>
-                <p className="text-xs text-zinc-500">Forge can list your repositories and branches.</p>
+                <p className="text-label-13 text-gray-900">Forge can list your repositories and branches.</p>
               </div>
+              <Badge tone="green" size="sm">
+                Connected
+              </Badge>
             </div>
-            <Button variant="secondary" onClick={() => setConfirmDisconnect(true)} icon={<Unplug className="size-4" aria-hidden />}>
-              Disconnect
-            </Button>
-          </div>
-        ) : !c.oauthConfigured ? (
-          <p
-            className="max-w-md text-[13px] text-zinc-400"
-            title="Set FORGE_GITHUB_CLIENT_ID and FORGE_GITHUB_CLIENT_SECRET on forge-server to enable it."
-          >
-            GitHub sign-in isn&apos;t enabled on this server. Public repositories work without it: enter them as
-            owner/name when you create a project.
-          </p>
-        ) : (
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="max-w-md text-[13px] text-zinc-400">
+          ) : !c.oauthConfigured ? (
+            <p
+              className="rounded-md border border-gray-alpha-400 bg-background-200 px-4 py-3 text-copy-14 text-gray-900"
+              title="Set FORGE_GITHUB_CLIENT_ID and FORGE_GITHUB_CLIENT_SECRET on forge-server to enable it."
+            >
+              GitHub sign-in isn&apos;t enabled on this server. Public repositories work without it: enter them as
+              owner/name when you create a project.
+            </p>
+          ) : (
+            <p className="rounded-md border border-gray-alpha-400 bg-background-200 px-4 py-3 text-copy-14 text-gray-900">
               Not connected. Public repositories work without it; connect to browse your repos and deploy private ones.
             </p>
-            <Button variant="primary" onClick={connect} loading={connecting} icon={<GithubIcon className="size-4" />}>
-              Connect GitHub
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+      <CardFooter>
+        <span>
+          {c?.connected ? "Disconnecting keeps existing projects working for public repos." : "Forge requests read access to your repositories."}
+        </span>
+        {c?.connected ? (
+          <Button variant="secondary" size="sm" onClick={() => setConfirmDisconnect(true)} icon={<Unplug className="size-4" aria-hidden />}>
+            Disconnect
+          </Button>
+        ) : c?.oauthConfigured ? (
+          <Button variant="primary" size="sm" onClick={connect} loading={connecting} icon={<GithubIcon className="size-4" />}>
+            Connect GitHub
+          </Button>
+        ) : null}
+      </CardFooter>
 
       <ConfirmDialog
         open={confirmDisconnect}
@@ -145,24 +150,28 @@ function AccountCard() {
   const { user } = useAuth();
   return (
     <Card>
-      <CardHeader icon={<UserRound className="size-4" aria-hidden />} title="Account" />
-      <dl className="grid gap-4 p-5 text-[13px] sm:grid-cols-2">
-        <div>
-          <dt className="text-zinc-500">Name</dt>
-          <dd className="mt-0.5 text-zinc-100">{user?.displayName}</dd>
+      <div className="p-6">
+        <h2 className="text-heading-20 text-gray-1000">Account</h2>
+        <p className="mt-3 text-copy-14 text-gray-900">The name and email address on your Forge account.</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <Field label="Name" htmlFor="account-name">
+            <Input id="account-name" value={user?.displayName ?? ""} readOnly />
+          </Field>
+          <Field label="Email" htmlFor="account-email">
+            <Input id="account-email" type="email" value={user?.email ?? ""} readOnly />
+          </Field>
         </div>
-        <div>
-          <dt className="text-zinc-500">Email</dt>
-          <dd className="mt-0.5 text-zinc-100">{user?.email}</dd>
-        </div>
-      </dl>
+      </div>
+      <CardFooter>
+        <span>These details are read-only for now.</span>
+      </CardFooter>
     </Card>
   );
 }
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl">
       <PageHeader title="Settings" description="Your account and connected services." />
       <div className="space-y-6">
         <GithubCard />

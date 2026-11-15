@@ -3,25 +3,37 @@ import { Loader2 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { cx } from "./cx";
 
+/**
+ * Geist button.
+ *  primary   — solid gray-1000 (white in dark, black in light). One per view.
+ *  secondary — page-coloured with a hairline border.
+ *  ghost     — "tertiary": no chrome until hover.
+ *  danger    — solid red for destructive confirms.
+ */
 type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "sm" | "md";
+type Size = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 " +
-  "disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap select-none " +
+  "transition-[background-color,color,box-shadow] duration-150 focus-ring " +
+  "disabled:pointer-events-none disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-border";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-brand-600 text-white shadow-sm shadow-brand-950/50 hover:bg-brand-500",
-  secondary: "border border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08] hover:border-white/15",
-  ghost: "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]",
-  danger: "bg-red-600/90 text-white hover:bg-red-500",
+  primary: "bg-gray-1000 text-background-100 hover:bg-gray-1000/85",
+  secondary: "bg-background-100 text-gray-1000 shadow-border hover:bg-gray-alpha-200",
+  ghost: "text-gray-1000 hover:bg-gray-alpha-200",
+  danger: "bg-red-700 text-white hover:bg-red-700/85",
 };
 
 const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-[13px]",
-  md: "h-9 px-4 text-sm",
+  sm: "h-8 px-2.5 text-label-14",
+  md: "h-10 px-3.5 text-label-14",
+  lg: "h-12 px-4 text-copy-16",
 };
+
+/** Square ghost icon button for row actions (pair with aria-label). */
+export const iconButtonClass =
+  "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-gray-900 transition-colors hover:bg-gray-alpha-200 hover:text-gray-1000 focus-ring disabled:pointer-events-none disabled:opacity-50";
 
 export function buttonClass(variant: Variant = "secondary", size: Size = "md", extra?: string) {
   return cx(base, variants[variant], sizes[size], extra);

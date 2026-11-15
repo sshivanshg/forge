@@ -49,6 +49,14 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   );
 }
 
+function Kbd({ children }: { children: ReactNode }) {
+  return (
+    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-gray-alpha-400 bg-background-100 px-1 font-sans text-label-12 text-gray-900">
+      {children}
+    </kbd>
+  );
+}
+
 function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const toast = useToast();
@@ -109,7 +117,11 @@ function Palette({ onClose }: { onClose: () => void }) {
         group: "Projects",
         label: p.name,
         hint: p.slug,
-        icon: <span className="flex size-4 items-center justify-center rounded-[4px] bg-ink-700 text-[10px] font-semibold text-zinc-300">{p.name[0]?.toUpperCase()}</span>,
+        icon: (
+          <span className="flex size-4 items-center justify-center rounded-full border border-gray-alpha-400 bg-background-200 text-[9px] leading-none font-semibold text-gray-1000">
+            {p.name[0]?.toUpperCase()}
+          </span>
+        ),
         keywords: `${p.repoOwner}/${p.repoName}`,
         run: go(`/projects/${p.id}`),
       });
@@ -179,10 +191,10 @@ function Palette({ onClose }: { onClose: () => void }) {
         if (e.target === dialog.current) onClose();
       }}
       aria-label="Command palette"
-      className="mx-auto mt-[12vh] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-white/10 bg-ink-900 p-0 text-zinc-100 shadow-2xl shadow-black/70 backdrop:bg-black/60 backdrop:backdrop-blur-[2px]"
+      className="mx-auto mt-[12vh] w-[calc(100%-2rem)] max-w-2xl overflow-hidden rounded-xl bg-background-100 p-0 text-gray-1000 shadow-modal backdrop:bg-black/40"
     >
-      <div className="flex items-center gap-3 border-b border-white/[0.07] px-4">
-        <Search className="size-4 shrink-0 text-zinc-500" aria-hidden />
+      <div className="flex items-center gap-3 border-b border-gray-alpha-400 px-4">
+        <Search className="size-5 shrink-0 text-gray-900" aria-hidden />
         <input
           autoFocus
           value={query}
@@ -196,18 +208,18 @@ function Palette({ onClose }: { onClose: () => void }) {
           aria-expanded
           aria-controls="palette-list"
           aria-activedescendant={filtered[sel] ? `cmd-${filtered[sel].id}` : undefined}
-          className="h-12 flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+          className="h-14 flex-1 bg-transparent text-copy-16 text-gray-1000 placeholder:text-gray-700 focus:outline-none"
         />
-        <kbd className="hidden rounded border border-white/10 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 sm:block">ESC</kbd>
+        <kbd className="hidden h-5 items-center rounded border border-gray-alpha-400 px-1.5 font-sans text-label-12 text-gray-900 sm:flex">Esc</kbd>
       </div>
-      <ul id="palette-list" ref={list} role="listbox" className="scrollbar-thin max-h-[min(60vh,420px)] overflow-y-auto p-1.5">
-        {filtered.length === 0 && <li className="px-3 py-8 text-center text-[13px] text-zinc-500">No matches for “{query}”</li>}
+      <ul id="palette-list" ref={list} role="listbox" className="scrollbar-thin max-h-[min(60vh,420px)] overflow-y-auto p-2">
+        {filtered.length === 0 && <li className="px-3 py-10 text-center text-copy-14 text-gray-900">No matches for “{query}”</li>}
         {filtered.map((c, i) => {
           const header = c.group !== lastGroup ? c.group : null;
           lastGroup = c.group;
           return (
             <li key={c.id} role="presentation">
-              {header && <p className="px-2.5 pt-2.5 pb-1 text-[11px] font-medium tracking-wide text-zinc-600 uppercase">{header}</p>}
+              {header && <p className="px-2 pt-3 pb-1.5 text-label-12 text-gray-900">{header}</p>}
               <div
                 id={`cmd-${c.id}`}
                 role="option"
@@ -216,23 +228,30 @@ function Palette({ onClose }: { onClose: () => void }) {
                 onMouseMove={() => setActive(i)}
                 onClick={() => c.run()}
                 className={cx(
-                  "flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-[13px]",
-                  i === sel ? "bg-white/[0.07] text-zinc-50" : "text-zinc-300",
+                  "flex h-10 cursor-pointer items-center gap-3 rounded-md px-2 text-label-14 text-gray-1000",
+                  i === sel && "bg-gray-alpha-200",
                 )}
               >
-                <span className={i === sel ? "text-brand-400" : "text-zinc-500"}>{c.icon}</span>
+                <span className={i === sel ? "text-gray-1000" : "text-gray-900"}>{c.icon}</span>
                 <span className="min-w-0 flex-1 truncate">{c.label}</span>
-                {c.hint && <span className="hidden max-w-[40%] truncate font-mono text-[11px] text-zinc-500 sm:block">{c.hint}</span>}
-                {i === sel && <ArrowRight className="size-3.5 shrink-0 text-zinc-500" aria-hidden />}
+                {c.hint && <span className="hidden max-w-[40%] truncate font-mono text-label-12 text-gray-900 sm:block">{c.hint}</span>}
+                {i === sel && <ArrowRight className="size-4 shrink-0 text-gray-900" aria-hidden />}
               </div>
             </li>
           );
         })}
       </ul>
-      <div className="flex items-center gap-4 border-t border-white/[0.07] px-4 py-2 font-mono text-[10px] text-zinc-600">
-        <span>↑↓ navigate</span>
-        <span>↵ select</span>
-        <span className="ml-auto">⌘K toggle</span>
+      <div className="flex items-center gap-4 border-t border-gray-alpha-400 bg-background-200 px-4 py-2.5 text-label-12 text-gray-900">
+        <span className="inline-flex items-center gap-1.5">
+          <Kbd>↑</Kbd>
+          <Kbd>↓</Kbd> Navigate
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Kbd>↵</Kbd> Select
+        </span>
+        <span className="ml-auto inline-flex items-center gap-1.5">
+          <Kbd>⌘K</Kbd> Toggle
+        </span>
       </div>
     </dialog>
   );

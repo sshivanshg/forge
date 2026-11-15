@@ -33,7 +33,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, label }: TabsPro
   };
 
   return (
-    <div role="tablist" aria-label={label} className="-mb-px flex gap-1 overflow-x-auto border-b border-white/[0.08]">
+    <div role="tablist" aria-label={label} className="flex gap-1 overflow-x-auto border-b border-gray-alpha-400">
       {tabs.map((tab, i) => {
         const selected = tab.id === value;
         return (
@@ -51,14 +51,15 @@ export function Tabs<T extends string>({ tabs, value, onChange, label }: TabsPro
             onClick={() => onChange(tab.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cx(
-              "relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-[13px] font-medium transition-colors",
-              "focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none",
-              selected ? "text-zinc-50" : "text-zinc-500 hover:text-zinc-200",
+              "group relative flex h-12 shrink-0 items-center gap-2 px-1 text-label-14 transition-colors focus-ring rounded-sm first:-ml-1",
+              selected ? "text-gray-1000" : "text-gray-900 hover:text-gray-1000",
             )}
           >
-            {tab.icon}
-            {tab.label}
-            {selected && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand-500" />}
+            <span className="flex items-center gap-2 rounded-md px-2 py-1 transition-colors group-hover:bg-gray-alpha-200">
+              {tab.icon}
+              {tab.label}
+            </span>
+            {selected && <span className="absolute inset-x-1 -bottom-px h-0.5 bg-gray-1000" />}
           </button>
         );
       })}

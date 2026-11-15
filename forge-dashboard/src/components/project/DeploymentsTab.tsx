@@ -1,12 +1,14 @@
 "use client";
 
-import { ChevronRight, Rocket, Undo2 } from "lucide-react";
+import { ChevronRight, GitBranch, GitCommitHorizontal, Rocket, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { RollbackDialog } from "@/components/deployment/RollbackDialog";
 import { TriggerIcon } from "@/components/deployment/TriggerLabel";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Button, iconButtonClass } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -17,6 +19,7 @@ import { canRollback, deploymentTitle, FAILURE_LABEL, isInProgress } from "@/lib
 import type { Deployment, Project } from "@/lib/types";
 
 const PAGE_SIZE = 15;
+
 
 const TRIGGER_SHORT: Record<Deployment["trigger"], string> = {
   MANUAL: "manual",
@@ -53,11 +56,13 @@ export function DeploymentsTab({ project, onDeploy, deploying }: Props) {
 
   if (!rows) {
     return (
-      <div className="space-y-2">
+      <Card className="divide-y divide-gray-alpha-400">
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-16 rounded-lg" />
+          <div key={i} className="px-6 py-4">
+            <Skeleton className="h-9" />
+          </div>
         ))}
-      </div>
+      </Card>
     );
   }
 
@@ -80,62 +85,94 @@ export function DeploymentsTab({ project, onDeploy, deploying }: Props) {
 
   return (
     <>
-      <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/30">
-        {rows.map((d) => {
-          const isCurrent = project.liveDeploymentId === d.id;
-          const running = isInProgress(d.status);
-          return (
-            <li key={d.id} className="group relative flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-white/[0.03] sm:px-5">
-              <div className="w-28 shrink-0">
-                <StatusBadge status={d.status} />
-              </div>
+      <Card className="overflow-hidden">
+        <ul className="divide-y divide-gray-alpha-400">
+          {rows.map((d) => {
+            const isCurrent = project.liveDeploymentId === d.id;
+            const running = isInProgress(d.status);
+            return (
+              <li
+                key={d.id}
+                className="group relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-gray-alpha-100 md:grid-cols-[8rem_9rem_minmax(0,1fr)_9rem_2.5rem] md:px-6"
+              >
+                {/* Id + environment */}
+                <div className="min-w-0">
+                  <Link
+                    href={`/deployments/${d.id}`}
+                    className="block truncate font-mono text-label-14 font-medium text-gray-1000 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:shadow-[inset_0_0_0_2px_var(--ds-blue-700)]"
+                  >
+                    {d.id.slice(0, 8)}
+                  </Link>
+                  <p className="mt-1 flex items-center gap-1.5 text-label-13 text-gray-900">
+                    Production
+                    {isCurrent && (
+                      <Badge tone="blue" size="sm">
+                        Current
+                      </Badge>
+                    )}
+                  </p>
+                </div>
 
-              <div className="min-w-0 flex-1">
-                <Link
-                  href={`/deployments/${d.id}`}
-                  className="block truncate text-[13px] font-medium text-zinc-100 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand-500/70 focus-visible:after:ring-inset"
-                >
-                  {deploymentTitle(d)}
-                </Link>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-                  <span className="font-mono text-zinc-400">{shortSha(d.commitSha)}</span>
-                  <span className="inline-flex items-center gap-1">
-                    <TriggerIcon trigger={d.trigger} className="size-3" />
-                    {TRIGGER_SHORT[d.trigger]}
-                  </span>
-                  {isCurrent && <span className="font-medium text-emerald-400">● current</span>}
+                {/* Status + duration */}
+                <div className="min-w-0 justify-self-end md:justify-self-auto">
+                  <StatusBadge status={d.status} />
+                  <p className="mt-1 text-label-13 text-gray-900 tabular md:pl-[18px]">
+                    {d.startedAt ? durationBetween(d.startedAt, running ? null : d.finishedAt) : running ? "Waiting" : "—"}
+                  </p>
+                </div>
+
+                {/* Source */}
+                <div className="col-span-2 min-w-0 md:col-span-1">
+                  <p className="flex items-center gap-1.5 text-label-14 text-gray-1000">
+                    <GitBranch className="size-4 shrink-0 text-gray-900" aria-hidden />
+                    <span className="truncate font-mono">{project.branch}</span>
+                  </p>
+                  <p className="mt-1 flex min-w-0 items-center gap-1.5 text-label-13 text-gray-900">
+                    <GitCommitHorizontal className="size-4 shrink-0" aria-hidden />
+                    <span className="shrink-0 font-mono">{shortSha(d.commitSha)}</span>
+                    <span className="truncate text-gray-1000">{deploymentTitle(d)}</span>
+                  </p>
                   {d.status === "FAILED" && d.failureReason && (
-                    <span className="text-red-400/90">{FAILURE_LABEL[d.failureReason]}</span>
+                    <p className="mt-1 text-label-13 text-red-900">{FAILURE_LABEL[d.failureReason]}</p>
                   )}
-                </p>
-              </div>
+                </div>
 
-              <div className="hidden shrink-0 text-right text-xs sm:block">
-                <p className="text-zinc-400" title={absoluteTime(d.createdAt)}>
-                  {relativeTime(d.createdAt)}
-                </p>
-                <p className="mt-0.5 font-mono text-zinc-600 tabular-nums">
-                  {d.startedAt ? durationBetween(d.startedAt, running ? null : d.finishedAt) : running ? "waiting" : "—"}
-                </p>
-              </div>
+                {/* When + who */}
+                <div className="hidden min-w-0 text-right md:block">
+                  <p className="text-label-14 text-gray-1000" title={absoluteTime(d.createdAt)}>
+                    {relativeTime(d.createdAt)}
+                  </p>
+                  <p className="mt-1 inline-flex items-center gap-1.5 text-label-13 text-gray-900">
+                    <TriggerIcon trigger={d.trigger} className="size-4" />
+                    {TRIGGER_SHORT[d.trigger]}
+                  </p>
+                </div>
 
-              <div className="relative z-10 flex w-24 shrink-0 justify-end">
-                {canRollback(d) && !isCurrent ? (
-                  <Button size="sm" variant="ghost" onClick={() => setRollbackTarget(d)} icon={<Undo2 className="size-3.5" aria-hidden />}>
-                    Rollback
-                  </Button>
-                ) : (
-                  <ChevronRight className="size-4 text-zinc-600 transition-transform group-hover:translate-x-0.5" aria-hidden />
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                {/* Actions */}
+                <div className="relative z-10 col-span-2 flex justify-end empty:hidden md:col-span-1">
+                  {canRollback(d) && !isCurrent ? (
+                    <button
+                      type="button"
+                      className={iconButtonClass}
+                      onClick={() => setRollbackTarget(d)}
+                      aria-label={`Roll back to ${shortSha(d.commitSha)}`}
+                      title="Roll back to this deployment"
+                    >
+                      <Undo2 className="size-4" aria-hidden />
+                    </button>
+                  ) : (
+                    <ChevronRight className="hidden size-4 text-gray-900 transition-transform group-hover:translate-x-0.5 md:block" aria-hidden />
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
 
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-[13px] text-zinc-500">
-          <span>
+        <div className="mt-4 flex items-center justify-between text-label-14 text-gray-900">
+          <span className="tabular">
             Page {page + 1} of {totalPages}
           </span>
           <div className="flex gap-2">

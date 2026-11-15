@@ -34,13 +34,13 @@ export function RunSettingsFields({ values, onChange, idPrefix = "run" }: Props)
   return (
     <div className="space-y-5">
       <div className="space-y-1.5">
-        <p id={`${idPrefix}-replicas`} className="text-[13px] font-medium text-zinc-300">
+        <p id={`${idPrefix}-replicas`} className="text-label-13 font-medium text-gray-900">
           Replicas
         </p>
         <div
           role="radiogroup"
           aria-labelledby={`${idPrefix}-replicas`}
-          className="inline-flex rounded-md border border-white/10 bg-zinc-950/60 p-0.5"
+          className="inline-flex gap-0.5 rounded-md border border-gray-alpha-400 bg-background-100 p-0.5"
         >
           {replicaOptions.map((n) => (
             <button
@@ -50,22 +50,21 @@ export function RunSettingsFields({ values, onChange, idPrefix = "run" }: Props)
               aria-checked={values.replicas === n}
               onClick={() => onChange({ replicas: n })}
               className={cx(
-                "h-8 w-11 rounded font-mono text-sm tabular-nums transition-colors",
-                "focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:outline-none",
-                values.replicas === n ? "bg-brand-600 text-white" : "text-zinc-400 hover:text-zinc-100",
+                "h-8 w-11 rounded-sm text-label-14 font-medium tabular transition-colors focus-ring",
+                values.replicas === n ? "bg-gray-1000 text-background-100" : "text-gray-900 hover:bg-gray-alpha-200 hover:text-gray-1000",
               )}
             >
               {n}
             </button>
           ))}
         </div>
-        <p className="text-xs text-zinc-500">
+        <p className="text-label-13 text-gray-900">
           Identical instances behind the load balancer. If one crashes, the others keep serving while Forge replaces it.
         </p>
       </div>
 
       <fieldset className="space-y-1.5">
-        <legend className="mb-1.5 text-[13px] font-medium text-zinc-300">Rollout strategy</legend>
+        <legend className="mb-1.5 text-label-13 font-medium text-gray-900">Rollout strategy</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           {ROLLOUT_OPTIONS.map((option) => {
             const selected = values.rollout === option.value;
@@ -73,9 +72,9 @@ export function RunSettingsFields({ values, onChange, idPrefix = "run" }: Props)
               <label
                 key={option.value}
                 className={cx(
-                  "relative flex cursor-pointer flex-col gap-1 rounded-lg border p-3.5 transition-colors",
-                  "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500/60",
-                  selected ? "border-brand-500/60 bg-brand-500/[0.07]" : "border-white/10 hover:border-white/20",
+                  "relative flex cursor-pointer flex-col gap-1 rounded-md border bg-background-100 p-4 transition-colors",
+                  "has-[:focus-visible]:shadow-[0_0_0_2px_var(--ds-background-100),0_0_0_4px_var(--ds-blue-700)]",
+                  selected ? "border-gray-1000" : "border-gray-alpha-400 hover:border-gray-alpha-500 hover:bg-gray-alpha-100",
                 )}
               >
                 <input
@@ -86,19 +85,19 @@ export function RunSettingsFields({ values, onChange, idPrefix = "run" }: Props)
                   onChange={() => onChange({ rollout: option.value })}
                   className="sr-only"
                 />
-                <span className="flex items-center gap-2 text-[13px] font-medium text-zinc-100">
+                <span className="flex items-center gap-2 text-label-14 font-medium text-gray-1000">
                   <span
                     className={cx(
-                      "flex size-3.5 items-center justify-center rounded-full border",
-                      selected ? "border-brand-400" : "border-zinc-600",
+                      "flex size-4 items-center justify-center rounded-full border",
+                      selected ? "border-gray-1000" : "border-gray-alpha-500",
                     )}
                     aria-hidden
                   >
-                    {selected && <span className="size-1.5 rounded-full bg-brand-400" />}
+                    {selected && <span className="size-2 rounded-full bg-gray-1000" />}
                   </span>
                   {option.title}
                 </span>
-                <span className="text-xs leading-relaxed text-zinc-500">{option.description}</span>
+                <span className="text-copy-13 text-gray-900">{option.description}</span>
               </label>
             );
           })}

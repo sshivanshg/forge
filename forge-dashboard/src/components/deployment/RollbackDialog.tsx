@@ -46,7 +46,7 @@ export function RollbackDialog({ target, onClose }: RollbackDialogProps) {
         target && (
           <>
             Forge will redeploy the already-built image of{" "}
-            <code className="rounded bg-white/[0.06] px-1 font-mono text-zinc-200">{shortSha(target.commitSha)}</code>
+            <code className="rounded-sm bg-gray-100 px-1 font-mono text-label-13 text-gray-1000">{shortSha(target.commitSha)}</code>
             {target.commitMessage ? ` (“${target.commitMessage}”)` : ""}. No rebuild needed — traffic switches once it passes
             its health check.
           </>

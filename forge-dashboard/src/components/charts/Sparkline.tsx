@@ -1,4 +1,3 @@
-import { useId } from "react";
 import { cx } from "@/components/ui/cx";
 
 interface SparklineProps {
@@ -12,9 +11,8 @@ interface SparklineProps {
   label?: string;
 }
 
-/** Tiny dependency-free line chart. Nulls break the line. */
-export function Sparkline({ values, className, tone = "text-brand-400", fill = true, max, label }: SparklineProps) {
-  const id = useId();
+/** Tiny dependency-free line chart. Nulls break the line. Monochrome by default. */
+export function Sparkline({ values, className, tone = "text-gray-1000", fill = true, max, label }: SparklineProps) {
   const W = 100;
   const H = 30;
   const nums = values.filter((v): v is number => v !== null && Number.isFinite(v));
@@ -47,13 +45,8 @@ export function Sparkline({ values, className, tone = "text-brand-400", fill = t
       aria-label={label}
       aria-hidden={label ? undefined : true}
     >
-      <defs>
-        <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="currentColor" stopOpacity="0.25" />
-          <stop offset="1" stopColor="currentColor" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {fill && area && <path d={area} fill={`url(#${id})`} />}
+      {/* Flat translucent wash under the line — no gradient. */}
+      {fill && area && <path d={area} fill="currentColor" fillOpacity="0.08" />}
       {valid.length > 0 && (
         <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
       )}

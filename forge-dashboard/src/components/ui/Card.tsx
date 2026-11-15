@@ -1,8 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cx } from "./cx";
 
+/** Geist surface: page-coloured, hairline border, 8px radius. */
 export function Card({ className, ...rest }: ComponentProps<"div">) {
-  return <div className={cx("rounded-lg border border-white/[0.07] bg-ink-900/70", className)} {...rest} />;
+  return <div className={cx("rounded-lg border border-gray-alpha-400 bg-background-100", className)} {...rest} />;
 }
 
 interface CardHeaderProps {
@@ -14,15 +15,28 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, description, actions, icon }: CardHeaderProps) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-alpha-400 px-6 py-4">
       <div className="flex min-w-0 items-start gap-3">
-        {icon && <div className="mt-0.5 text-zinc-400">{icon}</div>}
+        {icon && <div className="mt-0.5 text-gray-900">{icon}</div>}
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-zinc-100">{title}</h2>
-          {description && <p className="mt-0.5 text-[13px] text-zinc-500">{description}</p>}
+          <h2 className="text-heading-16 text-gray-1000">{title}</h2>
+          {description && <p className="mt-1 text-copy-14 text-gray-900">{description}</p>}
         </div>
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </div>
+  );
+}
+
+/** Grey footer strip — Vercel puts the save action and its hint here. */
+export function CardFooter({ className, ...rest }: ComponentProps<"div">) {
+  return (
+    <div
+      className={cx(
+        "flex flex-wrap items-center justify-between gap-3 rounded-b-lg border-t border-gray-alpha-400 bg-background-200 px-6 py-3 text-copy-14 text-gray-900",
+        className,
+      )}
+      {...rest}
+    />
   );
 }

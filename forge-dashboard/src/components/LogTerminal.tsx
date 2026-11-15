@@ -13,12 +13,8 @@ export interface TerminalLine {
   ts?: string;
 }
 
-const SOURCE_STYLE: Record<LogSource, { text: string; bar: string }> = {
-  BUILD: { text: "text-sky-400", bar: "bg-sky-500/50" },
-  DEPLOY: { text: "text-brand-400", bar: "bg-brand-500/60" },
-  RUNTIME: { text: "text-emerald-400", bar: "bg-emerald-500/50" },
-  SYSTEM: { text: "text-amber-400", bar: "bg-amber-500/50" },
-};
+/** Sources stay monochrome; the label column is enough to tell them apart. */
+const SOURCE_TEXT = "text-gray-900";
 
 export function isAgentLine(l: Pick<TerminalLine, "source" | "line">): boolean {
   return l.source === "SYSTEM" && l.line.trimStart().startsWith("🤖");
@@ -36,7 +32,7 @@ function highlight(text: string, q: string): ReactNode {
   while (true) {
     const j = lower.indexOf(q, i);
     if (j < 0) break;
-    out.push(text.slice(i, j), <mark key={k++} className="rounded-[2px] bg-brand-500/35 text-brand-50">{text.slice(j, j + q.length)}</mark>);
+    out.push(text.slice(i, j), <mark key={k++} className="rounded-sm bg-amber-200 text-gray-1000">{text.slice(j, j + q.length)}</mark>);
     i = j + q.length;
   }
   out.push(text.slice(i));
@@ -45,14 +41,26 @@ function highlight(text: string, q: string): ReactNode {
 
 const Row = memo(function Row({ l, n, q }: { l: TerminalLine; n: number; q: string }) {
   const agent = isAgentLine(l);
-  const text = stripAnsi(l.line);
-  const tone = agent ? "font-medium text-brand-200" : ERROR_RE.test(text) ? "text-red-300" : WARN_RE.test(text) ? "text-amber-200/90" : "text-zinc-300";
+  const raw = stripAnsi(l.line);
+  // The agent prefixes its lines with a robot emoji; the purple row already marks them.
+  const text = agent ? raw.replace(/^\s*\u{1F916}\s*/u, "") : raw;
+  const error = !agent && ERROR_RE.test(text);
+  const warn = !agent && !error && WARN_RE.test(text);
+  const tone = agent ? "text-purple-900" : error ? "text-red-900" : warn ? "text-amber-900" : "text-gray-1000";
   return (
-    <div className={cx("group flex hover:bg-white/[0.03]", agent && "my-1 bg-brand-500/[0.09] hover:bg-brand-500/[0.12]")}>
-      <span className={cx("w-[3px] shrink-0", agent ? "bg-brand-500" : l.source ? SOURCE_STYLE[l.source].bar : "bg-transparent")} aria-hidden />
-      <span className="w-12 shrink-0 pr-3 text-right text-zinc-700 select-none group-hover:text-zinc-500">{n}</span>
-      {l.ts && <span className="hidden w-[4.5rem] shrink-0 text-zinc-600 select-none md:inline">{clockTime(l.ts)}</span>}
-      {l.source && <span className={cx("hidden w-16 shrink-0 select-none sm:inline", SOURCE_STYLE[l.source].text)}>{l.source.toLowerCase()}</span>}
+    <div
+      className={cx(
+        "group flex",
+        agent ? "bg-purple-100" : error ? "bg-red-100" : warn ? "bg-amber-100" : "hover:bg-gray-alpha-100",
+      )}
+    >
+      <span className="w-12 shrink-0 pr-3 text-right text-gray-700 select-none">{n}</span>
+      {l.ts && <span className="hidden w-[4.75rem] shrink-0 text-gray-900 select-none md:inline">{clockTime(l.ts)}</span>}
+      {l.source && (
+        <span className={cx("hidden w-16 shrink-0 select-none sm:inline", agent ? "text-purple-900" : SOURCE_TEXT)}>
+          {agent ? "agent" : l.source.toLowerCase()}
+        </span>
+      )}
       <span className={cx("min-w-0 flex-1 pr-4 break-words whitespace-pre-wrap", tone)}>{highlight(text, q) || " "}</span>
     </div>
   );
@@ -105,21 +113,21 @@ export function LogTerminal({ lines, title, status, empty, className }: LogTermi
   const filtering = !!q || source !== "ALL";
 
   return (
-    <div className={cx("relative flex flex-col overflow-hidden rounded-lg border border-white/[0.08] bg-[#09090a]", className)}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/[0.06] bg-ink-900 px-3 py-2">
-        {title && <span className="text-xs font-medium text-zinc-300">{title}</span>}
-        <span className="font-mono text-[11px] text-zinc-500 tabular">
+    <div className={cx("relative flex flex-col overflow-hidden rounded-lg border border-gray-alpha-400 bg-background-100", className)}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gray-alpha-400 px-3 py-2">
+        {title && <span className="text-label-14 font-medium text-gray-1000">{title}</span>}
+        <span className="text-label-13 text-gray-900 tabular">
           {filtering ? `${numbered.length.toLocaleString()} / ` : ""}
           {lines.length.toLocaleString()} lines
         </span>
-        {status && <span className="text-[11px] text-zinc-500">{status}</span>}
+        {status && <span className="text-label-13 text-gray-900">{status}</span>}
         <div className="ml-auto flex w-full items-center gap-2 sm:w-auto">
           {sources.length > 1 && (
             <select
               aria-label="Filter by source"
               value={source}
               onChange={(e) => setSource(e.target.value as LogSource | "ALL")}
-              className="h-7 rounded border border-white/10 bg-ink-950 px-1.5 font-mono text-[11px] text-zinc-300 focus:ring-2 focus:ring-brand-500/40 focus:outline-none"
+              className="h-8 rounded-md border border-gray-alpha-400 bg-background-100 px-2 text-label-13 text-gray-1000 hover:border-gray-alpha-500 focus-ring"
             >
               <option value="ALL">all sources</option>
               {sources.map((s) => (
@@ -131,16 +139,21 @@ export function LogTerminal({ lines, title, status, empty, className }: LogTermi
           )}
           <label className="relative flex-1 sm:w-48 sm:flex-none">
             <span className="sr-only">Search logs</span>
-            <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-zinc-600" aria-hidden />
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-gray-900" aria-hidden />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search"
-              className="h-7 w-full rounded border border-white/10 bg-ink-950 pr-6 pl-7 font-mono text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
+              className="h-8 w-full rounded-md border border-gray-alpha-400 bg-background-100 pr-7 pl-8 text-label-13 text-gray-1000 placeholder:text-gray-700 hover:border-gray-alpha-500 focus:border-gray-alpha-600 focus:shadow-[0_0_0_3px_var(--ds-gray-alpha-300)] focus:outline-none"
             />
             {query && (
-              <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="absolute top-1/2 right-1.5 -translate-y-1/2 text-zinc-500 hover:text-zinc-200">
-                <X className="size-3" />
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-sm p-0.5 text-gray-900 hover:text-gray-1000 focus-ring"
+              >
+                <X className="size-3.5" />
               </button>
             )}
           </label>
@@ -150,11 +163,11 @@ export function LogTerminal({ lines, title, status, empty, className }: LogTermi
             aria-checked={follow}
             onClick={() => setFollow((f) => !f)}
             className={cx(
-              "flex h-7 shrink-0 items-center gap-1.5 rounded border px-2 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none",
-              follow ? "border-brand-500/40 bg-brand-500/10 text-brand-200" : "border-white/10 text-zinc-500 hover:text-zinc-200",
+              "flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-label-13 font-medium transition-colors focus-ring",
+              follow ? "bg-gray-1000 text-background-100" : "shadow-border text-gray-900 hover:bg-gray-alpha-200 hover:text-gray-1000",
             )}
           >
-            <ArrowDown className="size-3" aria-hidden />
+            <ArrowDown className="size-3.5" aria-hidden />
             Follow
           </button>
         </div>
@@ -166,12 +179,12 @@ export function LogTerminal({ lines, title, status, empty, className }: LogTermi
         aria-live="off"
         aria-label={typeof title === "string" ? title : "Logs"}
         tabIndex={0}
-        className="scrollbar-thin min-h-0 flex-1 overflow-y-auto py-2 font-mono text-[12px] leading-[1.65] focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none focus-visible:ring-inset"
+        className="scrollbar-thin min-h-0 flex-1 overflow-y-auto py-2 font-mono text-label-13 leading-[20px] focus-visible:shadow-[inset_0_0_0_2px_var(--ds-blue-700)] focus-visible:outline-none"
       >
         {lines.length === 0 ? (
-          <div className="px-4 text-zinc-600">{empty ?? "Waiting for output…"}</div>
+          <div className="px-4 text-gray-900">{empty ?? "Waiting for output…"}</div>
         ) : numbered.length === 0 ? (
-          <div className="px-4 text-zinc-600">No lines match.</div>
+          <div className="px-4 text-gray-900">No lines match.</div>
         ) : (
           numbered.map(({ l, n }) => <Row key={l.key} l={l} n={n} q={q} />)
         )}
@@ -180,7 +193,7 @@ export function LogTerminal({ lines, title, status, empty, className }: LogTermi
         <button
           type="button"
           onClick={() => setFollow(true)}
-          className="toast-in absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-ink-800/95 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-xl shadow-black/50 hover:bg-ink-700 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
+          className="toast-in absolute bottom-4 left-1/2 inline-flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-background-100 px-3 text-label-13 font-medium text-gray-1000 shadow-menu hover:bg-gray-100 focus-ring"
         >
           <ArrowDown className="size-3.5" aria-hidden />
           Jump to latest
@@ -192,18 +205,18 @@ export function LogTerminal({ lines, title, status, empty, className }: LogTermi
 
 export function StreamIndicator({ state }: { state: string }) {
   const map: Record<string, { label: string; dot: string; pulse?: boolean }> = {
-    connecting: { label: "Connecting", dot: "bg-zinc-400", pulse: true },
-    open: { label: "Streaming", dot: "bg-emerald-400", pulse: true },
-    reconnecting: { label: "Reconnecting", dot: "bg-amber-400", pulse: true },
-    closed: { label: "Ended", dot: "bg-zinc-600" },
-    error: { label: "Disconnected", dot: "bg-red-400" },
+    connecting: { label: "Connecting", dot: "bg-gray-700", pulse: true },
+    open: { label: "Streaming", dot: "bg-green-700", pulse: true },
+    reconnecting: { label: "Reconnecting", dot: "bg-amber-700", pulse: true },
+    closed: { label: "Ended", dot: "bg-gray-700" },
+    error: { label: "Disconnected", dot: "bg-red-700" },
   };
   const m = map[state] ?? map.closed;
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="relative inline-flex size-1.5">
-        {m.pulse && <span className={cx("absolute inset-0 animate-ping rounded-full opacity-70", m.dot)} />}
-        <span className={cx("relative inline-flex size-1.5 rounded-full", m.dot)} />
+      <span className="relative inline-flex size-2">
+        {m.pulse && <span className={cx("absolute inset-0 animate-ping rounded-full opacity-50", m.dot)} />}
+        <span className={cx("relative inline-flex size-2 rounded-full", m.dot)} />
       </span>
       {m.label}
     </span>

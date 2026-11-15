@@ -1,16 +1,16 @@
 const W = 118;
 const H = 36;
-const S: Record<string, { x: number; y: number; tone: string }> = {
-  QUEUED: { x: 20, y: 130, tone: "#a1a1aa" },
-  BUILDING: { x: 170, y: 130, tone: "#f76b15" },
-  DEPLOYING: { x: 320, y: 130, tone: "#f76b15" },
-  HEALTH_CHECKING: { x: 470, y: 130, tone: "#f76b15" },
-  CANARY: { x: 640, y: 130, tone: "#22d3ee" },
-  LIVE: { x: 790, y: 130, tone: "#34d399" },
-  SUPERSEDED: { x: 950, y: 90, tone: "#71717a" },
-  STOPPED: { x: 950, y: 170, tone: "#71717a" },
-  FAILED: { x: 470, y: 250, tone: "#f87171" },
-  CANCELLED: { x: 95, y: 30, tone: "#71717a" },
+const S: Record<string, { x: number; y: number; tone: string; text: string }> = {
+  QUEUED: { x: 20, y: 130, tone: "var(--ds-gray-alpha-600)", text: "var(--ds-gray-1000)" },
+  BUILDING: { x: 170, y: 130, tone: "var(--ds-gray-alpha-600)", text: "var(--ds-gray-1000)" },
+  DEPLOYING: { x: 320, y: 130, tone: "var(--ds-gray-alpha-600)", text: "var(--ds-gray-1000)" },
+  HEALTH_CHECKING: { x: 470, y: 130, tone: "var(--ds-gray-alpha-600)", text: "var(--ds-gray-1000)" },
+  CANARY: { x: 640, y: 130, tone: "var(--ds-blue-700)", text: "var(--ds-blue-900)" },
+  LIVE: { x: 790, y: 130, tone: "var(--ds-green-700)", text: "var(--ds-green-900)" },
+  SUPERSEDED: { x: 950, y: 90, tone: "var(--ds-gray-alpha-400)", text: "var(--ds-gray-900)" },
+  STOPPED: { x: 950, y: 170, tone: "var(--ds-gray-alpha-400)", text: "var(--ds-gray-900)" },
+  FAILED: { x: 470, y: 250, tone: "var(--ds-red-700)", text: "var(--ds-red-900)" },
+  CANCELLED: { x: 95, y: 30, tone: "var(--ds-gray-alpha-400)", text: "var(--ds-gray-900)" },
 };
 const c = (k: string) => ({ x: S[k].x + W / 2, y: S[k].y + H / 2 });
 
@@ -37,7 +37,7 @@ export function StateMachine() {
     })),
   ];
   return (
-    <div className="scrollbar-thin overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-900/60">
+    <div className="scrollbar-thin overflow-x-auto rounded-lg border border-gray-alpha-400 bg-background-100">
       <svg viewBox="0 0 1090 310" className="min-w-[760px]" role="img" aria-labelledby="sm-title sm-desc">
         <title id="sm-title">Deployment state machine</title>
         <desc id="sm-desc">
@@ -47,14 +47,14 @@ export function StateMachine() {
         </desc>
         <defs>
           <marker id="sm-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M0 0 8 4 0 8z" fill="#71717a" />
+            <path d="M0 0 8 4 0 8z" fill="var(--ds-gray-700)" />
           </marker>
         </defs>
         {edges.map((e, i) => (
           <g key={i}>
-            <path d={e.d} fill="none" stroke="rgb(161 161 170 / 0.45)" strokeWidth="1.2" markerEnd="url(#sm-a)" />
+            <path d={e.d} fill="none" stroke="var(--ds-gray-alpha-500)" strokeWidth="1" markerEnd="url(#sm-a)" />
             {"label" in e && e.label && (
-              <text x={e.lx} y={e.ly} textAnchor="middle" fontSize="10" className="fill-zinc-400 font-mono">
+              <text x={e.lx} y={e.ly} textAnchor="middle" fontSize="10" fill="var(--ds-gray-900)" className="font-mono">
                 {e.label}
               </text>
             )}
@@ -62,8 +62,8 @@ export function StateMachine() {
         ))}
         {Object.entries(S).map(([k, s]) => (
           <g key={k}>
-            <rect x={s.x} y={s.y} width={W} height={H} rx="18" fill="#141416" stroke={s.tone} strokeOpacity="0.8" />
-            <text x={s.x + W / 2} y={s.y + 22} textAnchor="middle" fontSize="11" fontWeight="600" fill={s.tone} className="font-mono">
+            <rect x={s.x} y={s.y} width={W} height={H} rx="18" fill="var(--ds-background-100)" stroke={s.tone} />
+            <text x={s.x + W / 2} y={s.y + 22} textAnchor="middle" fontSize="11" fontWeight="600" fill={s.text} className="font-mono">
               {k}
             </text>
           </g>

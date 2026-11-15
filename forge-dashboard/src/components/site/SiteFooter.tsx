@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/ui/Logo";
+import { LogoMark } from "@/components/ui/Logo";
 import { GITHUB_URL } from "./links";
 
 const COLUMNS = [
@@ -28,28 +28,30 @@ const COLUMNS = [
   },
 ];
 
+const linkClass = "focus-ring rounded-sm text-label-14 text-gray-900 transition-colors hover:text-gray-1000";
+
 export function SiteFooter() {
   return (
-    <footer className="border-t border-white/[0.06] bg-ink-950">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+    <footer className="border-t border-gray-alpha-400 bg-background-200">
+      <div className="mx-auto grid max-w-[1200px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div>
-          <Logo />
-          <p className="mt-3 max-w-xs text-[13px] leading-relaxed text-zinc-500">
+          <LogoMark className="size-7" />
+          <p className="mt-4 max-w-xs text-copy-14 text-gray-900">
             A cloud-native deployment and orchestration platform. Java 21, Spring Boot, PostgreSQL, Traefik.
           </p>
         </div>
         {COLUMNS.map((c) => (
           <nav key={c.title} aria-label={c.title}>
-            <h2 className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-500">{c.title}</h2>
-            <ul className="mt-3 space-y-2">
+            <h2 className="text-heading-14 text-gray-1000">{c.title}</h2>
+            <ul className="mt-4 space-y-3">
               {c.links.map((l) => (
                 <li key={l.label}>
                   {l.href.startsWith("http") ? (
-                    <a href={l.href} className="text-[13px] text-zinc-400 hover:text-zinc-100">
+                    <a href={l.href} className={linkClass}>
                       {l.label}
                     </a>
                   ) : (
-                    <Link href={l.href} className="text-[13px] text-zinc-400 hover:text-zinc-100">
+                    <Link href={l.href} className={linkClass}>
                       {l.label}
                     </Link>
                   )}
@@ -59,10 +61,14 @@ export function SiteFooter() {
           </nav>
         ))}
       </div>
-      <div className="border-t border-white/[0.04]">
-        <p className="mx-auto max-w-6xl px-4 py-5 font-mono text-[11px] text-zinc-600 sm:px-6">
-          Forge · Scalable Cloud-Native Application Deployment and Orchestration Platform
-        </p>
+      <div className="border-t border-gray-alpha-400">
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6">
+          <p className="text-label-13 text-gray-900">Forge · Scalable Cloud-Native Application Deployment and Orchestration Platform</p>
+          <p className="inline-flex items-center gap-2 text-label-13 text-gray-900">
+            <span className="size-2 rounded-full bg-blue-700" aria-hidden />
+            University SDE project · open source
+          </p>
+        </div>
       </div>
     </footer>
   );

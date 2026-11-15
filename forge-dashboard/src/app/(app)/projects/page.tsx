@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GithubIcon } from "@/components/ui/GithubIcon";
@@ -40,99 +41,103 @@ function useRecentDeployments(projects: Project[] | undefined) {
   return recent;
 }
 
-function ProjectRow({ project, recent }: { project: Project; recent: Deployment[] | undefined }) {
+function ProjectCard({ project, recent }: { project: Project; recent: Deployment[] | undefined }) {
   const latest = recent?.[0];
   const isLive = !!project.liveDeploymentId;
   const host = project.liveUrl.replace(/^https?:\/\//, "");
   const durations = (recent ?? []).map(deployDurationMs).reverse();
   const med = median(durations.filter((v): v is number => v !== null));
+  const enoughData = durations.filter((v) => v !== null).length > 1;
 
   return (
-    <li className="group relative grid grid-cols-1 gap-3 px-4 py-4 transition-colors hover:bg-white/[0.02] md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_auto_7rem] md:items-center md:gap-6 md:px-5">
+    <li className="group relative flex flex-col rounded-lg border border-gray-alpha-400 bg-background-100 p-4 transition-[border-color,box-shadow] hover:border-gray-alpha-500 hover:shadow-menu">
       {/* Identity */}
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-ink-800 font-mono text-sm font-semibold text-zinc-200">
+      <div className="flex items-start gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-gray-alpha-400 bg-background-200 text-label-13 font-semibold text-gray-1000">
           {project.name.charAt(0).toUpperCase()}
         </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/projects/${project.id}`}
-              className="truncate text-[14px] font-semibold text-zinc-100 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand-500/70 focus-visible:after:ring-inset"
-            >
-              {project.name}
-            </Link>
-            {recent === undefined ? (
-              <Skeleton className="h-5 w-16 rounded-full" />
-            ) : latest ? (
-              <StatusBadge status={latest.status} />
-            ) : (
-              <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-zinc-500">Not deployed</span>
-            )}
-          </div>
+        <div className="min-w-0 flex-1">
+          <Link
+            href={`/projects/${project.id}`}
+            className="block truncate text-heading-14 text-gray-1000 after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:shadow-[0_0_0_2px_var(--ds-background-100),0_0_0_4px_var(--ds-blue-700)]"
+          >
+            {project.name}
+          </Link>
           {isLive ? (
             <a
               href={project.liveUrl}
               target="_blank"
               rel="noreferrer"
-              className="relative z-10 mt-0.5 inline-flex max-w-full items-center gap-1 font-mono text-xs text-emerald-400/90 hover:text-emerald-300 hover:underline focus-visible:underline focus-visible:outline-none"
+              className="relative z-10 inline-flex max-w-full items-center gap-1 rounded-sm text-label-13 text-gray-900 hover:text-gray-1000 hover:underline focus-ring"
             >
               <span className="truncate">{host}</span>
               <ArrowUpRight className="size-3 shrink-0" aria-hidden />
             </a>
           ) : (
-            <p className="mt-0.5 truncate font-mono text-xs text-zinc-600">{host}</p>
+            <p className="truncate text-label-13 text-gray-900">{host}</p>
+          )}
+        </div>
+        <div className="shrink-0">
+          {recent === undefined ? (
+            <Skeleton className="h-5 w-16" />
+          ) : latest ? (
+            <StatusBadge status={latest.status} className="text-label-13" />
+          ) : (
+            <Badge size="sm">Not deployed</Badge>
           )}
         </div>
       </div>
 
+      {/* Repo */}
+      <p className="mt-4 inline-flex max-w-full items-center gap-1.5 self-start rounded-full bg-gray-100 px-2 py-0.5 text-label-12 font-medium text-gray-1000">
+        <GithubIcon className="size-3.5 shrink-0" />
+        <span className="truncate">
+          {project.repoOwner}/{project.repoName}
+        </span>
+      </p>
+
       {/* Last deploy */}
-      <div className="min-w-0 text-[13px] md:pl-0">
+      <div className="mt-3 min-h-10">
         {recent === undefined ? (
-          <Skeleton className="h-4 w-3/4" />
+          <div className="space-y-2">
+            <Skeleton className="h-3.5 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
         ) : latest ? (
           <>
-            <p className="truncate text-zinc-300">{deploymentTitle(latest)}</p>
-            <p className="mt-0.5 flex items-center gap-2 text-xs text-zinc-500">
-              <span className="font-mono text-zinc-400">{shortSha(latest.commitSha)}</span>
-              <GitBranch className="size-3" aria-hidden />
+            <p className="truncate text-label-14 text-gray-1000">{deploymentTitle(latest)}</p>
+            <p className="mt-1 flex min-w-0 items-center gap-1.5 text-label-13 text-gray-900">
+              <span>{relativeTime(latest.createdAt)} on</span>
+              <GitBranch className="size-3.5 shrink-0" aria-hidden />
               <span className="truncate font-mono">{project.branch}</span>
-              <span>· {relativeTime(latest.createdAt)}</span>
+              <span className="shrink-0 font-mono">{shortSha(latest.commitSha)}</span>
             </p>
           </>
         ) : (
-          <p className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <GithubIcon className="size-3.5" />
-            {project.repoOwner}/{project.repoName}
-          </p>
+          <p className="text-label-13 text-gray-900">No deployments yet.</p>
         )}
       </div>
 
-      {/* Topology */}
-      <div className="flex items-center gap-2 text-xs text-zinc-400">
-        <span className="inline-flex items-center gap-1 rounded border border-white/[0.08] px-1.5 py-0.5" title="Replicas">
-          <Layers className="size-3 text-zinc-500" aria-hidden />
-          <span className="font-mono tabular">{project.replicas ?? 1}×</span>
+      {/* Topology + build time */}
+      <div className="mt-4 flex items-center gap-3 border-t border-gray-alpha-400 pt-3 text-label-12 text-gray-900">
+        <span className="inline-flex items-center gap-1" title="Replicas">
+          <Layers className="size-3.5" aria-hidden />
+          <span className="tabular">{project.replicas ?? 1}×</span>
         </span>
-        <span
-          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 ${project.rollout === "CANARY" ? "border-cyan-500/25 text-cyan-300" : "border-white/[0.08]"}`}
-          title="Rollout mode"
-        >
-          <Split className="size-3" aria-hidden />
+        <span className="inline-flex items-center gap-1" title="Rollout mode">
+          <Split className="size-3.5" aria-hidden />
           {project.rollout === "CANARY" ? "Canary" : "Blue-green"}
         </span>
-      </div>
-
-      {/* Durations */}
-      <div className="hidden md:block" title="Recent deploy durations">
-        {durations.filter((v) => v !== null).length > 1 ? (
-          <>
-            <Sparkline values={durations} className="h-6 w-full" tone="text-brand-400" />
-            <p className="mt-1 text-right font-mono text-[10px] text-zinc-500 tabular">p50 {med !== null ? formatDuration(med) : "—"}</p>
-          </>
-        ) : (
-          <p className="text-right font-mono text-[10px] text-zinc-600">{recent === undefined ? "" : "not enough data"}</p>
-        )}
+        <span className="ml-auto flex items-center gap-2" title="Recent deploy durations">
+          {enoughData ? (
+            <>
+              <Sparkline values={durations} className="h-4 w-14" tone="text-gray-900" fill={false} />
+              <span className="tabular">p50 {med !== null ? formatDuration(med) : "—"}</span>
+            </>
+          ) : recent === undefined ? null : (
+            <span>Not enough data</span>
+          )}
+        </span>
       </div>
     </li>
   );
@@ -148,7 +153,7 @@ export default function ProjectsPage() {
     <>
       <PageHeader
         title="Projects"
-        description={list ? `${list.length} ${list.length === 1 ? "project" : "projects"} · ${list.filter((p) => p.liveDeploymentId).length} live` : "Loading…"}
+        description={list ? `${list.length} ${list.length === 1 ? "project" : "projects"}, ${list.filter((p) => p.liveDeploymentId).length} live` : "Loading…"}
         actions={
           <ButtonLink href="/projects/new" variant="primary" size="sm" icon={<Plus className="size-4" aria-hidden />}>
             New project
@@ -159,14 +164,19 @@ export default function ProjectsPage() {
       {projects.error && !list ? (
         <Alert action={<Button size="sm" onClick={projects.reload}>Retry</Button>}>{projects.error.message}</Alert>
       ) : !list ? (
-        <div className="divide-y divide-white/[0.05] rounded-lg border border-white/[0.07] bg-ink-900">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="flex items-center gap-3 px-5 py-5">
-              <Skeleton className="size-9" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-64" />
+            <div key={i} className="rounded-lg border border-gray-alpha-400 bg-background-100 p-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-8 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-44" />
+                </div>
               </div>
+              <Skeleton className="mt-4 h-5 w-36 rounded-full" />
+              <Skeleton className="mt-3 h-3.5 w-3/4" />
+              <Skeleton className="mt-2 h-3 w-1/2" />
             </div>
           ))}
         </div>
@@ -182,19 +192,11 @@ export default function ProjectsPage() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-white/[0.07] bg-ink-900">
-          <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_auto_7rem] gap-6 border-b border-white/[0.06] px-5 py-2 text-[11px] font-medium tracking-wide text-zinc-600 uppercase md:grid">
-            <span>Project</span>
-            <span>Last deploy</span>
-            <span>Topology</span>
-            <span className="text-right">Build time</span>
-          </div>
-          <ul className="divide-y divide-white/[0.05]">
-            {list.map((p) => (
-              <ProjectRow key={p.id} project={p} recent={recent[p.id]} />
-            ))}
-          </ul>
-        </div>
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map((p) => (
+            <ProjectCard key={p.id} project={p} recent={recent[p.id]} />
+          ))}
+        </ul>
       )}
     </>
   );

@@ -15,11 +15,11 @@ export interface DocPage {
 }
 
 const C = ({ children }: { children: ReactNode }) => (
-  <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[0.86em] text-brand-200">{children}</code>
+  <code className="rounded-sm bg-gray-alpha-200 px-1 py-0.5 font-mono text-[0.9em] text-gray-1000">{children}</code>
 );
-const P = ({ children }: { children: ReactNode }) => <p className="my-4 leading-7 text-zinc-300">{children}</p>;
+const P = ({ children }: { children: ReactNode }) => <p className="my-4 text-copy-16 leading-7 text-gray-1000">{children}</p>;
 const UL = ({ items }: { items: ReactNode[] }) => (
-  <ul className="my-4 list-disc space-y-2 pl-5 leading-7 text-zinc-300 marker:text-brand-500">
+  <ul className="my-4 list-disc space-y-2 pl-5 text-copy-16 leading-7 text-gray-1000 marker:text-gray-700">
     {items.map((it, i) => (
       <li key={i}>{it}</li>
     ))}
@@ -27,22 +27,22 @@ const UL = ({ items }: { items: ReactNode[] }) => (
 );
 function T({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   return (
-    <div className="scrollbar-thin my-5 overflow-x-auto rounded-lg border border-white/[0.08]">
-      <table className="w-full min-w-[520px] text-left text-[13.5px]">
-        <thead className="bg-white/[0.03] text-zinc-400">
+    <div className="scrollbar-thin my-6 overflow-x-auto rounded-lg border border-gray-alpha-400">
+      <table className="w-full min-w-[520px] text-left text-copy-14">
+        <thead className="border-b border-gray-alpha-400 bg-background-200 text-gray-900">
           <tr>
             {head.map((h) => (
-              <th key={h} scope="col" className="px-3 py-2 font-medium">
+              <th key={h} scope="col" className="px-4 py-2.5 text-label-13 font-medium">
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/[0.06] text-zinc-300">
+        <tbody className="divide-y divide-gray-alpha-400 bg-background-100 text-gray-1000">
           {rows.map((r, i) => (
             <tr key={i}>
               {r.map((c, j) => (
-                <td key={j} className="px-3 py-2 align-top">
+                <td key={j} className="px-4 py-2.5 align-top">
                   {c}
                 </td>
               ))}
@@ -53,8 +53,15 @@ function T({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
     </div>
   );
 }
-const Note = ({ children }: { children: ReactNode }) => (
-  <div className="my-5 rounded-lg border border-brand-500/20 bg-brand-500/[0.06] px-4 py-3 text-[14px] leading-6 text-zinc-300">{children}</div>
+const NOTE_TONES = {
+  info: "border-blue-400 bg-blue-100 text-blue-900",
+  warning: "border-amber-400 bg-amber-100 text-amber-900",
+  error: "border-red-400 bg-red-100 text-red-900",
+};
+const Note = ({ children, tone = "info" }: { children: ReactNode; tone?: keyof typeof NOTE_TONES }) => (
+  <div className={`my-6 rounded-md border px-4 py-3 text-copy-14 [&_code]:bg-gray-alpha-100 [&_code]:text-current ${NOTE_TONES[tone]}`}>
+    {children}
+  </div>
 );
 
 export const DOCS: DocPage[] = [

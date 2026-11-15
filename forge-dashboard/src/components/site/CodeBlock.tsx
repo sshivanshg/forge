@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 
-export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
+/** Geist code block: raised surface, header strip with a filename/language label and a copy button. */
+export function CodeBlock({ code, lang, filename }: { code: string; lang?: string; filename?: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -15,20 +16,19 @@ export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
     }
   };
   return (
-    <div className="group relative my-5 overflow-hidden rounded-lg border border-white/[0.08] bg-ink-900">
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-1.5">
-        <span className="font-mono text-[11px] uppercase tracking-wider text-zinc-500">{lang ?? "text"}</span>
+    <div className="my-6 overflow-hidden rounded-lg border border-gray-alpha-400 bg-background-200">
+      <div className="flex h-10 items-center justify-between border-b border-gray-alpha-400 pl-4 pr-2">
+        <span className="font-mono text-label-13 text-gray-900">{filename ?? lang ?? "text"}</span>
         <button
           type="button"
           onClick={copy}
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/70"
+          className="focus-ring inline-flex size-7 items-center justify-center rounded-md text-gray-900 transition-colors hover:bg-gray-alpha-200 hover:text-gray-1000"
           aria-label={copied ? "Copied" : "Copy code"}
         >
-          {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-          {copied ? "Copied" : "Copy"}
+          {copied ? <Check className="size-3.5 text-green-700" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
         </button>
       </div>
-      <pre className="scrollbar-thin overflow-x-auto p-4 font-mono text-[12.5px] leading-relaxed text-zinc-300">
+      <pre className="scrollbar-thin overflow-x-auto px-4 py-3.5 font-mono text-label-13 leading-[22px] text-gray-1000">
         <code>{code}</code>
       </pre>
     </div>

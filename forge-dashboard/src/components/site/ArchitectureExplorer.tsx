@@ -129,13 +129,33 @@ function anchor(n: Node, toward: Node) {
   return { x: cx, y: cy + (Math.sign(dy) * n.h) / 2 };
 }
 
-const KIND_STYLE: Record<Kind, { stroke: string; dot: string }> = {
-  client: { stroke: "#a1a1aa", dot: "#e4e4e7" },
-  module: { stroke: "#f76b15", dot: "#ff8a3d" },
-  data: { stroke: "#a78bfa", dot: "#c4b5fd" },
-  infra: { stroke: "#22d3ee", dot: "#67e8f9" },
-  external: { stroke: "#52525b", dot: "#a1a1aa" },
+const KIND_LABEL: Record<Kind, string> = {
+  client: "client",
+  module: "module",
+  data: "data store",
+  infra: "infrastructure",
+  external: "external",
 };
+
+const LEGEND_NODE: Node = { ...NODES[0], x: 0, y: 0 };
+
+/** Node marker per kind — monochrome; shape, not colour, tells kinds apart. */
+function KindMark({ n }: { n: Node }) {
+  const x = n.x + 14;
+  const y = n.y + 20;
+  switch (n.kind) {
+    case "module":
+      return <rect x={x - 3.5} y={y - 3.5} width="7" height="7" rx="1.5" fill="var(--ds-gray-1000)" />;
+    case "data":
+      return <rect x={x - 3.5} y={y - 3.5} width="7" height="7" rx="1.5" fill="none" stroke="var(--ds-gray-1000)" strokeWidth="1.2" />;
+    case "infra":
+      return <path d={`M${x} ${y - 4} L${x + 4} ${y + 3.5} L${x - 4} ${y + 3.5} Z`} fill="var(--ds-gray-1000)" />;
+    case "external":
+      return <circle cx={x} cy={y} r="3.5" fill="none" stroke="var(--ds-gray-900)" strokeWidth="1.2" />;
+    default:
+      return <circle cx={x} cy={y} r="3.5" fill="var(--ds-gray-900)" />;
+  }
+}
 
 export function ArchitectureExplorer() {
   const [selected, setSelected] = useState<string>("deployment");
@@ -144,115 +164,179 @@ export function ArchitectureExplorer() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <div className="scrollbar-thin self-start overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-900/60 dot-grid">
-        <svg viewBox="0 0 1000 560" className="min-w-[760px]" role="group" aria-label="Forge system architecture. Select a component for details.">
-          <defs>
-            <marker id="ae-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-              <path d="M0 0 8 4 0 8z" fill="#71717a" />
-            </marker>
-            <marker id="ae-arrow-hot" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-              <path d="M0 0 8 4 0 8z" fill="#ff8a3d" />
-            </marker>
-          </defs>
-          <rect x="242" y="30" width="520" height="384" rx="14" fill="rgb(247 107 21 / 0.03)" stroke="rgb(247 107 21 / 0.25)" strokeDasharray="4 4" />
-          <text x="258" y="54" className="fill-brand-300 font-mono" fontSize="11">forge-server · Spring Boot modular monolith · :8080</text>
-          <text x="790" y="54" className="fill-zinc-500 font-mono" fontSize="11">data & external</text>
-          <text x="262" y="456" className="fill-zinc-500 font-mono" fontSize="11">data plane</text>
-          {EDGES.map((e, i) => {
-            const a = byId[e.from];
-            const b = byId[e.to];
-            const p1 = anchor(a, b);
-            const p2 = anchor(b, a);
-            const hot = e.from === selected || e.to === selected;
-            return (
-              <g key={i}>
-                <line
-                  x1={p1.x}
-                  y1={p1.y}
-                  x2={p2.x}
-                  y2={p2.y}
-                  stroke={hot ? "#ff8a3d" : "rgb(161 161 170 / 0.35)"}
-                  strokeWidth={hot ? 1.6 : 1}
-                  strokeDasharray={e.dashed ? "4 4" : undefined}
-                  markerEnd={`url(#${hot ? "ae-arrow-hot" : "ae-arrow"})`}
-                  className={hot ? "site-flow" : undefined}
-                />
-                {e.label && (
-                  <text x={(p1.x + p2.x) / 2} y={(p1.y + p2.y) / 2 - 5} textAnchor="middle" fontSize="9.5" className={hot ? "fill-brand-200 font-mono" : "fill-zinc-500 font-mono"}>
-                    {e.label}
+      <div className="self-start overflow-hidden rounded-lg border border-gray-alpha-400 bg-background-100">
+        <div className="scrollbar-thin overflow-x-auto">
+          <svg
+            viewBox="0 0 1000 560"
+            className="min-w-[760px]"
+            role="group"
+            aria-label="Forge system architecture. Select a component for details."
+          >
+            <defs>
+              <marker id="ae-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0 0 8 4 0 8z" fill="var(--ds-gray-700)" />
+              </marker>
+              <marker id="ae-arrow-hot" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0 0 8 4 0 8z" fill="var(--ds-blue-700)" />
+              </marker>
+            </defs>
+            <rect
+              x="242"
+              y="30"
+              width="520"
+              height="384"
+              rx="10"
+              fill="var(--ds-gray-alpha-100)"
+              stroke="var(--ds-gray-alpha-500)"
+              strokeDasharray="4 4"
+            />
+            <text x="258" y="54" fill="var(--ds-gray-1000)" className="font-mono" fontSize="11">
+              forge-server · Spring Boot modular monolith · :8080
+            </text>
+            <text x="790" y="54" fill="var(--ds-gray-900)" className="font-mono" fontSize="11">
+              data & external
+            </text>
+            <text x="262" y="456" fill="var(--ds-gray-900)" className="font-mono" fontSize="11">
+              data plane
+            </text>
+            {EDGES.map((e, i) => {
+              const a = byId[e.from];
+              const b = byId[e.to];
+              const p1 = anchor(a, b);
+              const p2 = anchor(b, a);
+              const hot = e.from === selected || e.to === selected;
+              return (
+                <g key={i}>
+                  <line
+                    x1={p1.x}
+                    y1={p1.y}
+                    x2={p2.x}
+                    y2={p2.y}
+                    stroke={hot ? "var(--ds-blue-700)" : "var(--ds-gray-alpha-500)"}
+                    strokeWidth={hot ? 1.5 : 1}
+                    strokeDasharray={e.dashed ? "4 4" : undefined}
+                    markerEnd={`url(#${hot ? "ae-arrow-hot" : "ae-arrow"})`}
+                    className={hot ? "site-flow" : undefined}
+                  />
+                  {e.label && (
+                    <text
+                      x={(p1.x + p2.x) / 2}
+                      y={(p1.y + p2.y) / 2 - 5}
+                      textAnchor="middle"
+                      fontSize="9.5"
+                      fill={hot ? "var(--ds-blue-900)" : "var(--ds-gray-900)"}
+                      className="font-mono"
+                    >
+                      {e.label}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+            {NODES.map((n) => {
+              const active = n.id === selected;
+              const dim = !active && !related.has(n.id);
+              return (
+                <g
+                  key={n.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={active}
+                  aria-label={`${n.label}: ${n.sub}`}
+                  onClick={() => setSelected(n.id)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter" || ev.key === " ") {
+                      ev.preventDefault();
+                      setSelected(n.id);
+                    }
+                  }}
+                  className="cursor-pointer outline-none [&:focus-visible>rect:first-child]:stroke-[var(--ds-blue-700)] [&:focus-visible>rect:first-child]:[stroke-width:2]"
+                  style={{
+                    opacity: dim ? 0.5 : 1,
+                    transition: "opacity 150ms",
+                  }}
+                >
+                  <rect
+                    x={n.x}
+                    y={n.y}
+                    width={n.w}
+                    height={n.h}
+                    rx="8"
+                    fill="var(--ds-background-100)"
+                    stroke={active ? "var(--ds-gray-1000)" : "var(--ds-gray-alpha-500)"}
+                    strokeWidth={active ? 1.5 : 1}
+                  />
+                  {active && <rect x={n.x} y={n.y + 10} width="2" height={n.h - 20} rx="1" fill="var(--ds-blue-700)" />}
+                  <KindMark n={n} />
+                  <text x={n.x + 25} y={n.y + 24} fontSize="13" fontWeight="600" fill="var(--ds-gray-1000)" className="font-mono">
+                    {n.label}
                   </text>
-                )}
-              </g>
-            );
-          })}
-          {NODES.map((n) => {
-            const s = KIND_STYLE[n.kind];
-            const active = n.id === selected;
-            const dim = !active && !related.has(n.id);
-            return (
-              <g
-                key={n.id}
-                role="button"
-                tabIndex={0}
-                aria-pressed={active}
-                aria-label={`${n.label}: ${n.sub}`}
-                onClick={() => setSelected(n.id)}
-                onKeyDown={(ev) => {
-                  if (ev.key === "Enter" || ev.key === " ") {
-                    ev.preventDefault();
-                    setSelected(n.id);
-                  }
-                }}
-                className="cursor-pointer outline-none [&:focus-visible>rect]:stroke-white"
-                style={{ opacity: dim ? 0.55 : 1, transition: "opacity 150ms" }}
-              >
-                <rect x={n.x} y={n.y} width={n.w} height={n.h} rx="9" fill={active ? "#1c1c1f" : "#141416"} stroke={active ? s.dot : s.stroke} strokeOpacity={active ? 1 : 0.55} strokeWidth={active ? 2 : 1} />
-                <circle cx={n.x + 14} cy={n.y + 20} r="3.5" fill={s.dot} />
-                <text x={n.x + 25} y={n.y + 24} fontSize="13" fontWeight="600" className="fill-zinc-100 font-mono">
-                  {n.label}
-                </text>
-                <text x={n.x + 14} y={n.y + 42} fontSize="10" className="fill-zinc-500">
-                  {n.sub}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+                  <text x={n.x + 14} y={n.y + 42} fontSize="10" fill="var(--ds-gray-900)">
+                    {n.sub}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+        <ul aria-label="Legend" className="flex flex-wrap gap-x-5 gap-y-2 border-t border-gray-alpha-400 bg-background-200 px-4 py-3">
+          {(Object.keys(KIND_LABEL) as Kind[]).map((k) => (
+            <li key={k} className="inline-flex items-center gap-2 text-label-12 text-gray-900">
+              <svg viewBox="9 15 10 10" className="size-2.5" aria-hidden>
+                <KindMark n={{ ...LEGEND_NODE, kind: k }} />
+              </svg>
+              {KIND_LABEL[k]}
+            </li>
+          ))}
+          <li className="inline-flex items-center gap-2 text-label-12 text-gray-900">
+            <svg viewBox="0 0 20 4" className="h-1 w-5" aria-hidden>
+              <line x1="0" y1="2" x2="20" y2="2" stroke="var(--ds-gray-900)" strokeDasharray="4 4" />
+            </svg>
+            event / async
+          </li>
+        </ul>
       </div>
 
-      <aside aria-live="polite" className="rounded-xl border border-white/[0.08] bg-ink-900 p-5">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-zinc-500">
-          {node.kind === "module" ? `module · com.forge.${node.id}` : node.kind}
-        </p>
-        <h3 className="mt-1 font-mono text-lg font-semibold text-zinc-50">{node.label}</h3>
-        <p className="mt-3 text-[13.5px] leading-relaxed text-zinc-300">{node.role}</p>
-        <h4 className="mt-5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-zinc-500">Key classes</h4>
-        <ul className="mt-2 flex flex-wrap gap-1.5">
-          {node.classes.map((c) => (
-            <li key={c} className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11.5px] text-brand-200">
-              {c}
-            </li>
-          ))}
-        </ul>
-        <h4 className="mt-5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-zinc-500">Patterns</h4>
-        <ul className="mt-2 space-y-1">
-          {node.patterns.map((p) => (
-            <li key={p} className="text-[13px] text-zinc-400">
-              {p}
-            </li>
-          ))}
-        </ul>
-        <div className="mt-6 border-t border-white/[0.06] pt-4">
-          <p className="mb-2 text-[11px] text-zinc-500">Jump to</p>
+      <aside aria-live="polite" className="self-start rounded-lg border border-gray-alpha-400 bg-background-100">
+        <div className="border-b border-gray-alpha-400 p-5">
+          <p className="font-mono text-label-12 text-gray-900">{node.kind === "module" ? `com.forge.${node.id}` : KIND_LABEL[node.kind]}</p>
+          <h3 className="mt-1 font-mono text-heading-20 text-gray-1000">{node.label}</h3>
+          <p className="mt-3 text-copy-14 text-gray-900">{node.role}</p>
+        </div>
+        <div className="space-y-5 p-5">
+          <div>
+            <h4 className="text-label-13 font-medium text-gray-1000">Key classes</h4>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {node.classes.map((c) => (
+                <li key={c} className="rounded-sm bg-gray-alpha-200 px-1.5 py-0.5 font-mono text-label-12 text-gray-1000">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-label-13 font-medium text-gray-1000">Patterns</h4>
+            <ul className="mt-2 space-y-1">
+              {node.patterns.map((p) => (
+                <li key={p} className="text-copy-13 text-gray-900">
+                  {p}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="rounded-b-lg border-t border-gray-alpha-400 bg-background-200 p-5">
+          <p className="mb-2 text-label-12 text-gray-900">Jump to module</p>
           <div className="flex flex-wrap gap-1">
             {NODES.filter((n) => n.kind === "module").map((n) => (
               <button
                 key={n.id}
                 type="button"
                 onClick={() => setSelected(n.id)}
+                aria-pressed={n.id === selected}
                 className={cx(
-                  "rounded px-1.5 py-0.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/70",
-                  n.id === selected ? "bg-brand-500/20 text-brand-200" : "text-zinc-400 hover:bg-white/[0.05]",
+                  "focus-ring rounded-md px-1.5 py-0.5 font-mono text-label-12 transition-colors",
+                  n.id === selected ? "bg-gray-1000 text-background-100" : "text-gray-900 hover:bg-gray-alpha-200 hover:text-gray-1000",
                 )}
               >
                 {n.label}

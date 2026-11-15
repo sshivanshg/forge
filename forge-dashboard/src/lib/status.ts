@@ -2,7 +2,7 @@ import type { Deployment, DeploymentStatus, FailureReason, PipelineStep } from "
 import { shortSha } from "./format";
 import { ALL_PIPELINE_STEPS } from "./types";
 
-export type Tone = "blue" | "violet" | "amber" | "cyan" | "green" | "red" | "grey" | "slate";
+export type Tone = "gray" | "blue" | "amber" | "green" | "red" | "purple" | "teal";
 
 export interface StatusMeta {
   label: string;
@@ -12,27 +12,27 @@ export interface StatusMeta {
 }
 
 export const STATUS_META: Record<DeploymentStatus, StatusMeta> = {
-  QUEUED: { label: "Queued", tone: "slate", active: true },
-  BUILDING: { label: "Building", tone: "blue", active: true },
-  DEPLOYING: { label: "Deploying", tone: "violet", active: true },
-  HEALTH_CHECKING: { label: "Health check", tone: "amber", active: true },
-  CANARY: { label: "Canary", tone: "cyan", active: true },
+  QUEUED: { label: "Queued", tone: "gray", active: true },
+  BUILDING: { label: "Building", tone: "amber", active: true },
+  DEPLOYING: { label: "Deploying", tone: "amber", active: true },
+  HEALTH_CHECKING: { label: "Health check", tone: "blue", active: true },
+  CANARY: { label: "Canary", tone: "purple", active: true },
   LIVE: { label: "Live", tone: "green", active: false },
   FAILED: { label: "Failed", tone: "red", active: false },
-  CANCELLED: { label: "Cancelled", tone: "grey", active: false },
-  SUPERSEDED: { label: "Superseded", tone: "grey", active: false },
-  STOPPED: { label: "Stopped", tone: "grey", active: false },
+  CANCELLED: { label: "Cancelled", tone: "gray", active: false },
+  SUPERSEDED: { label: "Superseded", tone: "gray", active: false },
+  STOPPED: { label: "Stopped", tone: "gray", active: false },
 };
 
+/** Geist steps: 100 tinted bg, 400 border, 700 solid dot, 900 text. */
 export const TONE_CLASSES: Record<Tone, { text: string; bg: string; border: string; dot: string }> = {
-  blue: { text: "text-sky-300", bg: "bg-sky-500/10", border: "border-sky-500/25", dot: "bg-sky-400" },
-  violet: { text: "text-brand-300", bg: "bg-brand-500/10", border: "border-brand-500/25", dot: "bg-brand-400" },
-  amber: { text: "text-amber-300", bg: "bg-amber-500/10", border: "border-amber-500/25", dot: "bg-amber-400" },
-  cyan: { text: "text-cyan-300", bg: "bg-cyan-500/10", border: "border-cyan-500/25", dot: "bg-cyan-400" },
-  green: { text: "text-emerald-300", bg: "bg-emerald-500/10", border: "border-emerald-500/25", dot: "bg-emerald-400" },
-  red: { text: "text-red-300", bg: "bg-red-500/10", border: "border-red-500/25", dot: "bg-red-400" },
-  grey: { text: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20", dot: "bg-zinc-500" },
-  slate: { text: "text-zinc-300", bg: "bg-zinc-400/10", border: "border-zinc-400/20", dot: "bg-zinc-300" },
+  gray: { text: "text-gray-900", bg: "bg-gray-100", border: "border-gray-alpha-400", dot: "bg-gray-700" },
+  blue: { text: "text-blue-900", bg: "bg-blue-100", border: "border-blue-400", dot: "bg-blue-700" },
+  amber: { text: "text-amber-900", bg: "bg-amber-100", border: "border-amber-400", dot: "bg-amber-700" },
+  green: { text: "text-green-900", bg: "bg-green-100", border: "border-green-400", dot: "bg-green-700" },
+  red: { text: "text-red-900", bg: "bg-red-100", border: "border-red-400", dot: "bg-red-700" },
+  purple: { text: "text-purple-900", bg: "bg-purple-100", border: "border-purple-400", dot: "bg-purple-700" },
+  teal: { text: "text-teal-900", bg: "bg-teal-100", border: "border-teal-400", dot: "bg-teal-700" },
 };
 
 export function isInProgress(status: DeploymentStatus): boolean {

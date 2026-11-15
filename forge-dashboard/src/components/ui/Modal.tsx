@@ -31,27 +31,31 @@ export function Modal({ open, onClose, title, description, children, footer }: M
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-white/10 bg-zinc-900 p-0 text-zinc-100 shadow-2xl shadow-black/60 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+      className="m-auto w-[calc(100%-2rem)] max-w-[540px] rounded-xl border-0 bg-background-100 p-0 text-gray-1000 shadow-modal backdrop:bg-black/50"
     >
       {open && (
-        <div className="p-5">
+        <>
+          <div className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-[15px] font-semibold">{title}</h2>
-              {description && <div className="mt-1 text-[13px] text-zinc-400">{description}</div>}
+              <h2 className="text-heading-24">{title}</h2>
+              {description && <div className="mt-2 text-copy-14 text-gray-900">{description}</div>}
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close dialog"
-              className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
+              className="-mt-1 -mr-1 rounded-md p-1.5 text-gray-900 transition-colors hover:bg-gray-alpha-200 hover:text-gray-1000 focus-ring"
             >
               <X className="size-4" />
             </button>
           </div>
-          {children && <div className="mt-4">{children}</div>}
-          {footer && <div className="mt-5 flex justify-end gap-2">{footer}</div>}
-        </div>
+          {children && <div className="mt-6">{children}</div>}
+          </div>
+          {footer && (
+            <div className="flex justify-between gap-2 rounded-b-xl border-t border-gray-alpha-400 bg-background-200 px-6 py-4">{footer}</div>
+          )}
+        </>
       )}
     </dialog>
   );
@@ -90,7 +94,7 @@ export function ConfirmDialog({
       description={description}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={loading}>
+          <Button variant="secondary" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button

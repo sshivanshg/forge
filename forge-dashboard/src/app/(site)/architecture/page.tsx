@@ -44,96 +44,106 @@ const WHY = [
 function H2({ id, eyebrow, children }: { id: string; eyebrow: string; children: React.ReactNode }) {
   return (
     <>
-      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand-400">{eyebrow}</p>
-      <h2 id={id} className="mt-2 text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
+      <p className="font-mono text-label-13 text-gray-900">{eyebrow}</p>
+      <h2 id={id} className="mt-2 text-heading-32 text-gray-1000">
         {children}
       </h2>
     </>
   );
 }
 
+const Code = ({ children }: { children: React.ReactNode }) => (
+  <code className="rounded-sm bg-gray-alpha-200 px-1 py-0.5 font-mono text-[0.9em] text-gray-1000">{children}</code>
+);
+
+const section = "border-t border-gray-alpha-400 py-16 md:py-20";
+
 export default function ArchitecturePage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6">
-      <header className="py-14">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand-400">Architecture</p>
-        <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight text-zinc-50 sm:text-5xl">How Forge is built</h1>
-        <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-zinc-400">
-          A Spring Boot control plane of 11 modules decides what should run and records it in PostgreSQL. The container engine and
-          Traefik run and route the apps. Select any component to see what it owns.
-        </p>
+    <>
+      <header className="relative overflow-hidden border-b border-gray-alpha-400">
+        <div className="grid-backdrop absolute inset-0 [mask-image:radial-gradient(ellipse_at_top_left,black_20%,transparent_70%)]" aria-hidden />
+        <div className="relative mx-auto max-w-[1200px] px-4 py-16 sm:px-6 md:py-24">
+          <p className="text-label-13 font-medium text-gray-900">Architecture</p>
+          <h1 className="mt-3 max-w-3xl text-heading-48 text-gray-1000 md:text-heading-64">
+            How Forge is built
+          </h1>
+          <p className="mt-6 max-w-2xl text-copy-16 text-gray-900 md:text-copy-20">
+            A Spring Boot control plane of 11 modules decides what should run and records it in PostgreSQL. The container engine and
+            Traefik run and route the apps. Select any component to see what it owns.
+          </p>
+        </div>
       </header>
 
-      <section aria-labelledby="system" className="pb-20">
-        <H2 id="system" eyebrow="01 · System">
-          Components and modules
-        </H2>
-        <p className="mb-6 mt-3 max-w-2xl text-[14px] text-zinc-400">
-          Dependencies point from orchestration (<code className="font-mono text-brand-200">deployment</code>) down to capabilities. The
-          graph has no cycles; <code className="font-mono text-brand-200">agent</code> and{" "}
-          <code className="font-mono text-brand-200">notification</code> only react to the DeploymentStatusChanged event (dashed).
-        </p>
-        <ArchitectureExplorer />
-      </section>
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+        <section aria-labelledby="system" className="py-16 md:py-20">
+          <H2 id="system" eyebrow="01 · System">
+            Components and modules
+          </H2>
+          <p className="mb-8 mt-4 max-w-2xl text-copy-16 text-gray-900">
+            Dependencies point from orchestration (<Code>deployment</Code>) down to capabilities. The graph has no cycles;{" "}
+            <Code>agent</Code> and <Code>notification</Code> only react to the DeploymentStatusChanged event (dashed).
+          </p>
+          <ArchitectureExplorer />
+        </section>
 
-      <section aria-labelledby="states" className="border-t border-white/[0.06] py-20">
-        <H2 id="states" eyebrow="02 · State">
-          Deployment state machine
-        </H2>
-        <p className="mb-6 mt-3 max-w-2xl text-[14px] text-zinc-400">
-          <code className="font-mono text-brand-200">DeploymentStatus</code> holds the transition table and{" "}
-          <code className="font-mono text-brand-200">Deployment.transitionTo()</code> refuses anything else (State pattern).Terminal states have no way out.
-        </p>
-        <StateMachine />
-      </section>
+        <section aria-labelledby="states" className={section}>
+          <H2 id="states" eyebrow="02 · State">
+            Deployment state machine
+          </H2>
+          <p className="mb-8 mt-4 max-w-2xl text-copy-16 text-gray-900">
+            <Code>DeploymentStatus</Code> holds the transition table and <Code>Deployment.transitionTo()</Code> refuses anything else
+            (State pattern). Terminal states have no way out.
+          </p>
+          <StateMachine />
+        </section>
 
-      <section aria-labelledby="flow" className="border-t border-white/[0.06] py-20">
-        <H2 id="flow" eyebrow="03 · Flow">
-          git push to live
-        </H2>
-        <ol className="mt-10 border-l border-white/[0.08]">
-          {FLOW.map((f, i) => (
-            <li key={i} className="relative pb-6 pl-8 last:pb-0">
-              <span className="absolute -left-[13px] top-0 flex size-[26px] items-center justify-center rounded-full border border-white/10 bg-ink-900 font-mono text-[10.5px] text-brand-300 tabular">
-                {i + 1}
-              </span>
-              <p className="font-mono text-[12.5px] text-brand-200">{f.who}</p>
-              <p className="mt-1 max-w-2xl text-[14px] leading-relaxed text-zinc-400">{f.what}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
+        <section aria-labelledby="flow" className={section}>
+          <H2 id="flow" eyebrow="03 · Flow">
+            git push to live
+          </H2>
+          <ol className="mt-10 overflow-hidden rounded-lg border border-gray-alpha-400 bg-background-100">
+            {FLOW.map((f, i) => (
+              <li key={i} className="grid gap-1 border-t border-gray-alpha-400 px-5 py-4 first:border-t-0 md:grid-cols-[48px_300px_1fr] md:gap-4">
+                <span className="tabular font-mono text-label-13 text-gray-900">{String(i + 1).padStart(2, "0")}</span>
+                <p className="font-mono text-label-13 text-gray-1000">{f.who}</p>
+                <p className="text-copy-14 text-gray-900">{f.what}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
 
-      <section aria-labelledby="why" className="border-t border-white/[0.06] py-20">
-        <H2 id="why" eyebrow="04 · Trade-offs">
-          Why it is built this way
-        </H2>
-        <dl className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2">
-          {WHY.map(([t, b]) => (
-            <div key={t} className="border-t border-white/[0.08] pt-4">
-              <dt className="text-[15px] font-medium text-zinc-100">{t}</dt>
-              <dd className="mt-1.5 text-[13.5px] leading-relaxed text-zinc-400">{b}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      <section aria-labelledby="decisions" className="border-t border-white/[0.06] py-20">
-        <H2 id="decisions" eyebrow="05 · Decision log">
-          Design decisions
-        </H2>
-        <ol className="mt-10 space-y-6">
-          {DECISIONS.map((d) => (
-            <li key={d.id} className="grid gap-2 sm:grid-cols-[80px_1fr]">
-              <span className="font-mono text-[12px] text-brand-400">{d.id}</span>
-              <div>
-                <h3 className="text-[15px] font-medium text-zinc-100">{d.title}</h3>
-                <p className="mt-1 max-w-3xl text-[13.5px] leading-relaxed text-zinc-400">{d.body}</p>
+        <section aria-labelledby="why" className={section}>
+          <H2 id="why" eyebrow="04 · Trade-offs">
+            Why it is built this way
+          </H2>
+          <dl className="mt-10 grid gap-px overflow-hidden rounded-lg border border-gray-alpha-400 bg-gray-alpha-400 sm:grid-cols-2">
+            {WHY.map(([t, b]) => (
+              <div key={t} className="bg-background-100 p-6">
+                <dt className="text-heading-16 text-gray-1000">{t}</dt>
+                <dd className="mt-2 text-copy-14 text-gray-900">{b}</dd>
               </div>
-            </li>
-          ))}
-        </ol>
-      </section>
-    </div>
+            ))}
+          </dl>
+        </section>
+
+        <section aria-labelledby="decisions" className={section}>
+          <H2 id="decisions" eyebrow="05 · Decision log">
+            Design decisions
+          </H2>
+          <ol className="mt-10 border-t border-gray-alpha-400">
+            {DECISIONS.map((d) => (
+              <li key={d.id} className="grid gap-2 border-b border-gray-alpha-400 py-6 sm:grid-cols-[100px_1fr]">
+                <span className="font-mono text-label-13 text-gray-900">{d.id}</span>
+                <div>
+                  <h3 className="text-heading-16 text-gray-1000">{d.title}</h3>
+                  <p className="mt-1.5 max-w-3xl text-copy-14 text-gray-900">{d.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+    </>
   );
 }

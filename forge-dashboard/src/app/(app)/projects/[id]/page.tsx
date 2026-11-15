@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Copy, GitBranch, History, KeyRound, LayoutGrid, Layers, Rocket, Settings, Split, SquareTerminal } from "lucide-react";
+import { ArrowUpRight, GitBranch, History, KeyRound, LayoutGrid, Layers, Rocket, Settings, Split, SquareTerminal } from "lucide-react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { OverviewTab } from "@/components/project/OverviewTab";
@@ -10,7 +10,7 @@ import { EnvironmentTab } from "@/components/project/EnvironmentTab";
 import { RuntimeLogsTab } from "@/components/project/RuntimeLogsTab";
 import { SettingsTab } from "@/components/project/SettingsTab";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClass } from "@/components/ui/Button";
 import { GithubIcon } from "@/components/ui/GithubIcon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, type TabDef } from "@/components/ui/Tabs";
@@ -73,87 +73,61 @@ function ProjectView() {
   if (!p) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-80" />
-        <Skeleton className="mt-8 h-10 w-full" />
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-5 w-80" />
+        <Skeleton className="mt-6 h-12 w-full" />
+        <Skeleton className="h-72 rounded-lg" />
       </div>
     );
   }
 
   const isLive = !!p.liveDeploymentId;
-  const host = p.liveUrl.replace(/^https?:\/\//, "");
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-4">
-          <div className="hidden size-12 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-ink-800 font-mono text-lg font-semibold text-zinc-200 sm:flex">
-            {p.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-50 sm:text-[22px]">{p.name}</h1>
-              {isLive ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
-                  <span className="size-1.5 rounded-full bg-emerald-400" aria-hidden /> Live
-                </span>
-              ) : (
-                <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-zinc-500">Not live</span>
-              )}
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-zinc-400">
-              {isLive ? (
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <a href={p.liveUrl} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 font-mono text-xs text-emerald-400 hover:text-emerald-300 hover:underline">
-                    <span className="truncate">{host}</span>
-                    <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
-                  </a>
-                  <button
-                    type="button"
-                    aria-label="Copy live URL"
-                    onClick={() => navigator.clipboard?.writeText(p.liveUrl).then(() => toast.success("Copied live URL"))}
-                    className="rounded p-1 text-zinc-600 hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:outline-none"
-                  >
-                    <Copy className="size-3" />
-                  </button>
-                </span>
-              ) : (
-                <span className="font-mono text-xs text-zinc-600">{host}</span>
-              )}
-              <a
-                href={`${p.repoUrl}/tree/${encodeURIComponent(p.branch)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 hover:text-zinc-100"
-              >
-                <GithubIcon className="size-3.5" />
-                {p.repoOwner}/{p.repoName}
-              </a>
-              <span className="inline-flex items-center gap-1 font-mono text-xs">
-                <GitBranch className="size-3.5 text-zinc-500" aria-hidden />
-                {p.branch}
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs">
-                <Layers className="size-3.5 text-zinc-500" aria-hidden />
-                <span className="font-mono">{p.replicas}×</span>
-              </span>
-              <span className={`inline-flex items-center gap-1 text-xs ${p.rollout === "CANARY" ? "text-cyan-300" : ""}`}>
-                <Split className="size-3.5" aria-hidden />
-                {p.rollout === "CANARY" ? "Canary" : "Blue-green"}
-              </span>
-            </div>
-          </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="truncate text-heading-32 text-gray-1000">{p.name}</h1>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-14 text-gray-900">
+            <span className="inline-flex items-center gap-1.5">
+              <GitBranch className="size-4" aria-hidden />
+              <span className="font-mono">{p.branch}</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Layers className="size-4" aria-hidden />
+              <span className="tabular">{p.replicas}×</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Split className="size-4" aria-hidden />
+              {p.rollout === "CANARY" ? "Canary" : "Blue-green"}
+            </span>
+          </p>
         </div>
-        <Button variant="primary" onClick={deploy} loading={deploying} icon={<Rocket className="size-4" aria-hidden />}>
-          Deploy
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`${p.repoUrl}/tree/${encodeURIComponent(p.branch)}`}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonClass("secondary", "md")}
+          >
+            <GithubIcon className="size-4" />
+            Repository
+          </a>
+          {isLive && (
+            <a href={p.liveUrl} target="_blank" rel="noreferrer" className={buttonClass("secondary", "md")}>
+              Visit
+              <ArrowUpRight className="size-4" aria-hidden />
+            </a>
+          )}
+          <Button variant="primary" onClick={deploy} loading={deploying} icon={<Rocket className="size-4" aria-hidden />}>
+            Deploy
+          </Button>
+        </div>
       </div>
 
       <Tabs tabs={TABS} value={tab} onChange={setTab} label="Project sections" />
 
-      <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="pt-6">
+      <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="pt-8">
         {tab === "overview" && <OverviewTab key={p.id} project={p} />}
         {tab === "deployments" && <DeploymentsTab project={p} onDeploy={deploy} deploying={deploying} />}
         {tab === "environment" && <EnvironmentTab project={p} onDeploy={deploy} deploying={deploying} />}

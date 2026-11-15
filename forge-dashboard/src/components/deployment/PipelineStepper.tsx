@@ -17,16 +17,6 @@ const STEP_LABEL: Record<PipelineStep, string> = {
   LIVE: "Live",
 };
 
-/** Ring + glow colour for the step that is running right now. */
-const CURRENT_STYLE: Record<PipelineStep, { ring: string; text: string; glow: string; cell: string; bar: string }> = {
-  QUEUED: { ring: "border-zinc-400 bg-zinc-400/10", text: "text-zinc-200", glow: "rgb(161 161 170 / 0.4)", cell: "border-zinc-400/40", bar: "bg-zinc-400" },
-  BUILDING: { ring: "border-sky-400 bg-sky-500/15", text: "text-sky-300", glow: "rgb(56 189 248 / 0.45)", cell: "border-sky-400/40", bar: "bg-sky-400" },
-  DEPLOYING: { ring: "border-brand-400 bg-brand-500/15", text: "text-brand-300", glow: "rgb(255 138 61 / 0.45)", cell: "border-brand-400/40", bar: "bg-brand-400" },
-  HEALTH_CHECKING: { ring: "border-amber-400 bg-amber-500/15", text: "text-amber-300", glow: "rgb(251 191 36 / 0.45)", cell: "border-amber-400/40", bar: "bg-amber-400" },
-  CANARY: { ring: "border-cyan-400 bg-cyan-500/15", text: "text-cyan-300", glow: "rgb(34 211 238 / 0.45)", cell: "border-cyan-400/40", bar: "bg-cyan-400" },
-  LIVE: { ring: "border-emerald-400 bg-emerald-500/15", text: "text-emerald-300", glow: "rgb(52 211 153 / 0.45)", cell: "border-emerald-400/40", bar: "bg-emerald-400" },
-};
-
 interface PipelineStepperProps {
   status: DeploymentStatus;
   /** For FAILED / CANCELLED: the step the deployment was in when it stopped. */
@@ -38,6 +28,42 @@ interface PipelineStepperProps {
   skipped?: readonly PipelineStep[];
   /** The steps to show; canary rollouts add a CANARY step before LIVE. */
   steps?: readonly PipelineStep[];
+  /** Horizontal stepper (default) or Vercel's vertical "Deployment details" rows. */
+  layout?: "horizontal" | "vertical";
+}
+
+function StepIcon({ state, step }: { state: StepState; step: PipelineStep }) {
+  const reached = state === "done" || state === "retired";
+  return (
+    <span
+      className={cx(
+        "relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full transition-colors duration-500",
+        state === "done" && "bg-gray-1000 text-background-100",
+        state === "retired" && "border border-gray-alpha-400 bg-gray-100 text-gray-900",
+        state === "current" && "step-glow border border-blue-400 bg-background-100 text-blue-700",
+        state === "failed" && "bg-red-700 text-white",
+        state === "cancelled" && "border border-gray-alpha-400 bg-background-100 text-gray-900",
+        state === "pending" && "border border-dashed border-gray-alpha-500 bg-background-100 text-gray-700",
+      )}
+      style={state === "current" ? ({ "--glow": "var(--ds-blue-400)" } as React.CSSProperties) : undefined}
+    >
+      {reached ? (
+        <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
+      ) : state === "current" ? (
+        step === "LIVE" ? <Check className="size-3.5" aria-hidden /> : <Loader2 className="size-3.5 animate-spin" aria-hidden />
+      ) : state === "failed" ? (
+        <X className="size-3.5" strokeWidth={2.5} aria-hidden />
+      ) : state === "cancelled" ? (
+        <Ban className="size-3.5" aria-hidden />
+      ) : null}
+    </span>
+  );
+}
+
+function labelTone(state: StepState) {
+  if (state === "done" || state === "current") return "text-gray-1000";
+  if (state === "failed") return "text-red-900";
+  return "text-gray-900";
 }
 
 function computeStates(
@@ -98,84 +124,69 @@ export function PipelineStepper({
   finishedAt,
   skipped = [],
   steps = PIPELINE_STEPS,
+  layout = "horizontal",
 }: PipelineStepperProps) {
   const states = computeStates(steps, status, stoppedAt);
+  const describe = (step: PipelineStep, i: number) => {
+    const state = states[i];
+    const duration = stepDuration(steps, step, i, enteredAt, state, status, finishedAt);
+    let label: string = STEP_LABEL[step];
+    if (i === steps.length - 1 && (status === "SUPERSEDED" || status === "STOPPED")) label = STATUS_META[status].label;
+    const note =
+      state === "failed" ? "Failed" : state === "cancelled" ? "Cancelled" : state === "done" && skipped.includes(step) ? "Skipped" : duration;
+    return { state, label, note };
+  };
+
+  if (layout === "vertical") {
+    return (
+      <ol className="divide-y divide-gray-alpha-400" aria-label="Deployment pipeline">
+        {steps.map((step, i) => {
+          const { state, label, note } = describe(step, i);
+          return (
+            <li key={step} className="flex h-12 items-center gap-3 px-4" aria-current={state === "current" ? "step" : undefined}>
+              <StepIcon state={state} step={step} />
+              <span className={cx("min-w-0 flex-1 truncate text-label-14 font-medium", labelTone(state))}>
+                {label}
+                <span className="sr-only"> — {state === "current" ? "in progress" : state === "pending" ? "not started" : state}</span>
+              </span>
+              <span className={cx("shrink-0 font-mono text-label-13 tabular", state === "failed" ? "text-red-900" : "text-gray-900")}>{note}</span>
+            </li>
+          );
+        })}
+      </ol>
+    );
+  }
 
   return (
     <div className="scrollbar-thin overflow-x-auto">
-      <ol className="flex min-w-[600px] items-stretch gap-1" aria-label="Deployment pipeline">
+      <ol className="flex min-w-[560px] items-start" aria-label="Deployment pipeline">
         {steps.map((step, i) => {
-          const state = states[i];
-          const current = CURRENT_STYLE[step];
-          const isLast = i === steps.length - 1;
-          const duration = stepDuration(steps, step, i, enteredAt, state, status, finishedAt);
-          let label: string = STEP_LABEL[step];
-          if (isLast && (status === "SUPERSEDED" || status === "STOPPED")) label = STATUS_META[status].label;
-          const note =
-            state === "failed" ? "failed" : state === "cancelled" ? "cancelled" : state === "done" && skipped.includes(step) ? "skipped" : duration;
+          const { state, label, note } = describe(step, i);
+          const reached = state === "done" || state === "retired";
 
           return (
             <li
               key={step}
-              className={cx(
-                "relative flex min-w-0 flex-1 flex-col gap-2 rounded-md border px-3 pt-2.5 pb-3 transition-colors duration-500",
-                state === "done" && "border-white/[0.07] bg-white/[0.02]",
-                state === "current" && cx("bg-white/[0.03]", current.cell),
-                state === "failed" && "border-red-500/40 bg-red-500/[0.06]",
-                (state === "cancelled" || state === "retired") && "border-white/[0.06] bg-transparent",
-                state === "pending" && "border-dashed border-white/[0.07] bg-transparent",
-              )}
+              className="relative flex min-w-0 flex-1 flex-col items-center px-1 text-center"
               aria-current={state === "current" ? "step" : undefined}
             >
-              <div className="flex items-center gap-2">
+              {i > 0 && (
                 <span
                   className={cx(
-                    "flex size-5 shrink-0 items-center justify-center rounded-full",
-                    state === "done" && (step === "LIVE" ? "bg-emerald-500 text-ink-950" : "bg-emerald-500/15 text-emerald-300"),
-                    state === "current" && cx(current.text, "step-glow"),
-                    state === "failed" && "bg-red-500/20 text-red-300",
-                    state === "cancelled" && "bg-zinc-500/15 text-zinc-400",
-                    state === "retired" && "bg-zinc-700/40 text-zinc-400",
-                    state === "pending" && "text-zinc-600",
+                    "absolute top-3 right-1/2 h-px w-full -translate-y-1/2",
+                    reached || state === "current" || state === "failed" || state === "cancelled" ? "bg-gray-alpha-600" : "bg-gray-alpha-400",
                   )}
-                  style={state === "current" ? ({ "--glow": current.glow } as React.CSSProperties) : undefined}
-                >
-                  {state === "done" || state === "retired" ? (
-                    <Check className="size-3" strokeWidth={3} aria-hidden />
-                  ) : state === "current" ? (
-                    step === "LIVE" ? <Check className="size-3" aria-hidden /> : <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                  ) : state === "failed" ? (
-                    <X className="size-3" strokeWidth={3} aria-hidden />
-                  ) : state === "cancelled" ? (
-                    <Ban className="size-3" aria-hidden />
-                  ) : (
-                    <span className="size-1.5 rounded-full border border-current" aria-hidden />
-                  )}
-                </span>
-                <span
-                  className={cx(
-                    "truncate text-[13px] font-medium",
-                    state === "current" && current.text,
-                    state === "done" && "text-zinc-200",
-                    state === "failed" && "text-red-300",
-                    (state === "cancelled" || state === "retired") && "text-zinc-400",
-                    state === "pending" && "text-zinc-600",
-                  )}
-                >
-                  {label}
-                  <span className="sr-only"> — {state === "current" ? "in progress" : state === "pending" ? "not started" : state}</span>
-                </span>
-                <span className={cx("ml-auto shrink-0 font-mono text-[11px] tabular", state === "failed" ? "text-red-400/80" : "text-zinc-500")}>{note}</span>
-              </div>
-              <div className="h-[3px] overflow-hidden rounded-full bg-white/[0.06]" aria-hidden>
-                {state === "done" && <div className={cx("h-full w-full", step === "LIVE" ? "bg-emerald-400" : "bg-emerald-500/60")} />}
-                {state === "failed" && <div className="h-full w-full bg-red-500/80" />}
-                {state === "retired" && <div className="h-full w-full bg-zinc-600" />}
-                {state === "cancelled" && <div className="h-full w-1/2 bg-zinc-500" />}
-                {state === "current" && (
-                  <div className={cx("progress-slide h-full w-2/5", current.bar)} />
-                )}
-              </div>
+                  aria-hidden
+                />
+              )}
+              <StepIcon state={state} step={step} />
+              <span
+                className={cx("mt-2 max-w-full truncate text-label-13 font-medium", labelTone(state))}
+              >
+                {label}
+                <span className="sr-only"> — {state === "current" ? "in progress" : state === "pending" ? "not started" : state}</span>
+              </span>
+              <span className={cx("mt-0.5 h-4 font-mono text-label-12 tabular", state === "failed" ? "text-red-900" : "text-gray-900")}>{note}</span>
             </li>
           );
         })}
