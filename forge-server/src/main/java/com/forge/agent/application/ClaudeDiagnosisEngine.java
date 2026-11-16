@@ -79,6 +79,9 @@ class ClaudeDiagnosisEngine implements DiagnosisEngine {
   @Override
   public Optional<Diagnosis> diagnose(FailureContext context) {
     if (!properties.llmEnabled()) {
+      log.info(
+          "LLM diagnosis of {} skipped: no ANTHROPIC_API_KEY configured, using the rule engine",
+          context.deploymentId());
       return Optional.empty();
     }
     try {
@@ -91,6 +94,9 @@ class ClaudeDiagnosisEngine implements DiagnosisEngine {
         boolean last = turn == properties.maxToolCalls();
         JsonNode response = send(messages, last);
         if (response == null) {
+          log.warn(
+              "LLM diagnosis of {} got an empty response, falling back to rules",
+              context.deploymentId());
           return Optional.empty();
         }
         JsonNode content = response.path("content");
@@ -113,10 +119,19 @@ class ClaudeDiagnosisEngine implements DiagnosisEngine {
                   "content", toolbox.call(session, name, block.path("input"))));
         }
         if (results.isEmpty()) {
-          return Optional.empty(); // the model stopped without submitting
+          log.warn(
+              "LLM diagnosis of {} stopped without submitting (stop_reason {}), falling back to"
+                  + " rules",
+              context.deploymentId(),
+              response.path("stop_reason").asText());
+          return Optional.empty();
         }
         messages.add(Map.of("role", "user", "content", results));
       }
+      log.warn(
+          "LLM diagnosis of {} used {} tool calls without submitting, falling back to rules",
+          context.deploymentId(),
+          properties.maxToolCalls());
       return Optional.empty();
     } catch (RuntimeException e) {
       log.warn("LLM diagnosis unavailable, falling back to rules: {}", e.getMessage());
