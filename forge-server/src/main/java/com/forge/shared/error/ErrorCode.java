@@ -15,6 +15,7 @@ public enum ErrorCode {
   CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "Resource was modified concurrently"),
   NOT_CANCELLABLE(HttpStatus.CONFLICT, "Deployment can no longer be cancelled"),
   NOT_ROLLBACKABLE(HttpStatus.UNPROCESSABLE_ENTITY, "Deployment cannot be rolled back to"),
+  ACTION_ALREADY_DECIDED(HttpStatus.CONFLICT, "Agent action was already decided"),
   GITHUB_NOT_CONNECTED(HttpStatus.UNPROCESSABLE_ENTITY, "GitHub account not connected"),
   GITHUB_OAUTH_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "GitHub OAuth is not configured"),
   REPOSITORY_UNREACHABLE(HttpStatus.UNPROCESSABLE_ENTITY, "Repository or branch not reachable"),

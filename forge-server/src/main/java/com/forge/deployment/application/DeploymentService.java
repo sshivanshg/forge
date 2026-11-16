@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
  * git pushes and project deletion.
  */
 @Service
-public class DeploymentService {
+public class DeploymentService implements com.forge.deployment.DeploymentCommands {
 
   private static final Logger log = LoggerFactory.getLogger(DeploymentService.class);
   private static final Pattern SHA = Pattern.compile("^[0-9a-f]{40}$");
@@ -64,6 +64,7 @@ public class DeploymentService {
    * Manual deploy. Pins the commit first (resolving the branch head over the network, outside any
    * transaction), then records the deployment and its job atomically.
    */
+  @Override
   public DeploymentView request(UUID projectId, UUID userId, String commitSha) {
     ProjectSnapshot project = projects.getOwned(projectId, userId);
     String sha;
@@ -89,6 +90,7 @@ public class DeploymentService {
     return queries.toView(transitions.cancel(deploymentId), false);
   }
 
+  @Override
   public DeploymentView rollback(UUID targetId, UUID userId) {
     DeploymentView target = queries.getOwned(targetId, userId);
     if (target.imageRef() == null) {
@@ -100,6 +102,21 @@ public class DeploymentService {
     } catch (com.forge.shared.error.ValidationException e) {
       throw new ForgeException(ErrorCode.NOT_ROLLBACKABLE, e.getMessage());
     }
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public java.util.List<DeploymentView> recent(UUID projectId, int limit) {
+    return deployments
+        .findByProject(
+            projectId,
+            org.springframework.data.domain.PageRequest.of(
+                0,
+                limit,
+                org.springframework.data.domain.Sort.by(
+                    org.springframework.data.domain.Sort.Direction.DESC, "createdAt")))
+        .map(d -> queries.toView(d, false))
+        .getContent();
   }
 
   @Transactional(readOnly = true)

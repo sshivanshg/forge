@@ -2,20 +2,31 @@ package com.forge.source.infrastructure;
 
 import com.forge.shared.error.ErrorCode;
 import com.forge.shared.error.ForgeException;
+import com.forge.source.CommitDiff;
 import com.forge.source.CommitInfo;
 import com.forge.source.GitRepository;
 import com.forge.source.SourceCodeProvider;
 import com.forge.source.application.GitHubProperties;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.diff.DiffEntry;
+import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -87,6 +98,78 @@ class JGitSourceCodeProvider implements SourceCodeProvider {
       return new CommitInfo(commit.getName(), commit.getShortMessage());
     } catch (GitAPIException | java.io.IOException e) {
       throw unreachable("Checkout of " + commitSha + " failed: " + e.getMessage());
+    }
+  }
+
+  @Override
+  public CommitDiff compare(
+      GitRepository repository,
+      String branch,
+      String baseSha,
+      String headSha,
+      Optional<String> accessToken,
+      int maxPatchChars) {
+    Path dir = null;
+    try {
+      dir = Files.createTempDirectory("forge-diff-");
+      try (Git git =
+          Git.cloneRepository()
+              .setURI(cloneUrl(repository))
+              .setDirectory(dir.toFile())
+              .setBranch(branch)
+              .setBare(true)
+              .setTimeout(TIMEOUT_SECONDS)
+              .setCredentialsProvider(credentials(accessToken))
+              .call()) {
+        var repo = git.getRepository();
+        ObjectId base = repo.resolve(baseSha + "^{tree}");
+        ObjectId head = repo.resolve(headSha + "^{tree}");
+        if (base == null || head == null) {
+          throw unreachable("Commit " + (base == null ? baseSha : headSha) + " not found");
+        }
+        try (ObjectReader reader = repo.newObjectReader();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            DiffFormatter formatter = new DiffFormatter(out)) {
+          formatter.setRepository(repo);
+          CanonicalTreeParser oldTree = new CanonicalTreeParser();
+          oldTree.reset(reader, base);
+          CanonicalTreeParser newTree = new CanonicalTreeParser();
+          newTree.reset(reader, head);
+          List<DiffEntry> entries = formatter.scan(oldTree, newTree);
+          formatter.format(entries);
+          String patch = out.toString(StandardCharsets.UTF_8);
+          boolean truncated = patch.length() > maxPatchChars;
+          List<String> files =
+              entries.stream()
+                  .map(
+                      e ->
+                          e.getChangeType() == DiffEntry.ChangeType.DELETE
+                              ? e.getOldPath()
+                              : e.getNewPath())
+                  .toList();
+          return new CommitDiff(
+              baseSha,
+              headSha,
+              files,
+              truncated ? patch.substring(0, maxPatchChars) : patch,
+              truncated);
+        }
+      }
+    } catch (GitAPIException | IOException e) {
+      throw unreachable("Could not compare " + baseSha + ".." + headSha + ": " + e.getMessage());
+    } finally {
+      deleteQuietly(dir);
+    }
+  }
+
+  private static void deleteQuietly(Path dir) {
+    if (dir == null) {
+      return;
+    }
+    try (var paths = Files.walk(dir)) {
+      paths.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+    } catch (IOException ignored) {
+      // a leftover temp directory is harmless
     }
   }
 

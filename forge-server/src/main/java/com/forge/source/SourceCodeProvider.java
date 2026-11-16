@@ -28,4 +28,19 @@ public interface SourceCodeProvider {
       String commitSha,
       Path targetDir,
       Optional<String> accessToken);
+
+  /**
+   * The changes from {@code baseSha} to {@code headSha} on {@code branch}, with the patch cut off
+   * after {@code maxPatchChars} characters.
+   *
+   * @throws com.forge.shared.error.ForgeException REPOSITORY_UNREACHABLE if either commit cannot be
+   *     read
+   */
+  CommitDiff compare(
+      GitRepository repository,
+      String branch,
+      String baseSha,
+      String headSha,
+      Optional<String> accessToken,
+      int maxPatchChars);
 }

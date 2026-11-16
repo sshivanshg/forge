@@ -29,6 +29,9 @@ public interface ProjectCatalog {
   /** Decrypted environment variables. Only called right before a container starts. */
   Map<String, String> environmentOf(UUID projectId);
 
+  /** Every project that currently has a live deployment (read by the agent's health watcher). */
+  List<ProjectSnapshot> listLive();
+
   /** Called by the deployment pipeline when a deployment of this project goes live. */
   void recordLiveDeployment(UUID projectId, UUID deploymentId);
 }
