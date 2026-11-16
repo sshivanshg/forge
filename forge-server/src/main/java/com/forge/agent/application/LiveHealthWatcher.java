@@ -111,6 +111,12 @@ class LiveHealthWatcher {
 
   private void recommend(ProjectSnapshot project, HealthPolicy.Verdict verdict) {
     DeploymentView live = queries.get(project.liveDeploymentId());
+    if (live.status() != DeploymentStatus.LIVE || deploymentInFlight(project)) {
+      // The owner already acted (e.g. an approved rollback is rolling out): a new proposal now
+      // would be stale by the time it is read, and approving it would only repeat the deploy.
+      log.debug("Health watch of {}: a deployment is in flight, no proposal", project.slug());
+      return;
+    }
     switch (verdict) {
       case ROLLBACK ->
           previousGood(project)
@@ -140,6 +146,11 @@ class LiveHealthWatcher {
         }
       }
     }
+  }
+
+  private boolean deploymentInFlight(ProjectSnapshot project) {
+    return deployments.recent(project.id(), 20).stream()
+        .anyMatch(d -> d.status() == DeploymentStatus.QUEUED || d.status().isInProgress());
   }
 
   /** The newest earlier deployment that went live and still has an image. */
