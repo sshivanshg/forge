@@ -18,6 +18,7 @@ import { useQuery, useTick } from "@/lib/hooks";
 import { deploymentTitle, TONE_CLASSES } from "@/lib/status";
 import type { Deployment, Project, RuntimeInstance } from "@/lib/types";
 import { useTraffic } from "@/lib/useTraffic";
+import { AgentActionsPanel } from "@/components/agent/AgentActionsPanel";
 
 function Muted({ children }: { children: ReactNode }) {
   return <p className="px-6 py-10 text-center text-copy-14 text-gray-900">{children}</p>;
@@ -345,6 +346,7 @@ export function OverviewTab({ project }: { project: Project }) {
     <div className="space-y-6">
       <ProductionDeployment project={project} rows={rows} />
       <TrafficPanel project={project} />
+      <AgentActionsPanel projectId={project.id} title="Forge Agent" />
       <div className="grid gap-6 lg:grid-cols-2">
         <InstancesPanel project={project} />
         <LatestDeploys rows={rows} />

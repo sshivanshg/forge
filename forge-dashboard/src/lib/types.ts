@@ -189,6 +189,40 @@ export interface Insight {
   createdAt: ISODate;
 }
 
+// ---------------------------------------------------------------- Agent actions
+
+export type AgentActionType = "ROLLBACK" | "REDEPLOY" | "SCALE_OUT" | "UPDATE_SETTINGS";
+export type AgentActionStatus = "PROPOSED" | "APPROVED" | "EXECUTED" | "REJECTED" | "FAILED" | "EXPIRED";
+export type AgentActionSource = "FAILURE_INVESTIGATION" | "HEALTH_WATCH" | "AUTO_CONFIGURE";
+
+/** Settings the agent proposes to change; null means "leave unchanged". */
+export interface AgentSettingsChange {
+  rootDir: string | null;
+  buildType: string | null;
+  port: number | null;
+  healthCheckPath: string | null;
+  replicas: number | null;
+}
+
+/** A change the agent proposes; nothing runs until the user approves it. */
+export interface AgentAction {
+  id: UUID;
+  projectId: UUID;
+  deploymentId: UUID | null;
+  type: AgentActionType;
+  status: AgentActionStatus;
+  source: AgentActionSource;
+  title: string;
+  rationale: string;
+  targetDeploymentId: UUID | null;
+  commitSha: string | null;
+  settings: AgentSettingsChange | null;
+  resultDeploymentId: UUID | null;
+  resultMessage: string | null;
+  createdAt: ISODate;
+  decidedAt: ISODate | null;
+}
+
 // ---------------------------------------------------------------- Observability
 
 /** Cumulative request counters for one deployment, sampled by the router. */

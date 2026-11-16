@@ -4,6 +4,7 @@ import { ArrowUpRight, CircleStop, GitBranch, GitCommitHorizontal, Undo2 } from 
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AgentActionsPanel } from "@/components/agent/AgentActionsPanel";
 import { AgentInsightCard } from "@/components/deployment/AgentInsightCard";
 import { PipelineStepper } from "@/components/deployment/PipelineStepper";
 import { RollbackDialog } from "@/components/deployment/RollbackDialog";
@@ -327,6 +328,7 @@ export default function DeploymentPage() {
       {status === "FAILED" && (
         <div className="space-y-4">
           <AgentInsightCard key={d.id} deploymentId={d.id} />
+          <AgentActionsPanel key={`actions-${d.id}`} deploymentId={d.id} title="Proposed fixes" />
           {d.failureDetail && (
             <Alert title={failureReason ? FAILURE_LABEL[failureReason] : "Deployment failed"}>
               <pre className="mt-1 font-mono text-label-13 break-words whitespace-pre-wrap">{d.failureDetail}</pre>

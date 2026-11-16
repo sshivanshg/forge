@@ -1,4 +1,5 @@
 import type {
+  AgentAction,
   CreateProjectInput,
   Deployment,
   EnvVar,
@@ -284,5 +285,14 @@ export const api = {
     insight: (id: string) => request<Insight>("GET", `/deployments/${enc(id)}/insight`),
     logStreamPath: (id: string) => `/deployments/${enc(id)}/logs/stream`,
     runtimeStreamPath: (projectId: string) => `/projects/${enc(projectId)}/runtime-logs/stream`,
+  },
+
+  agent: {
+    projectActions: (projectId: string) =>
+      request<AgentAction[]>("GET", `/projects/${enc(projectId)}/agent/actions`),
+    deploymentActions: (deploymentId: string) =>
+      request<AgentAction[]>("GET", `/deployments/${enc(deploymentId)}/agent/actions`),
+    approve: (id: string) => request<AgentAction>("POST", `/agent/actions/${enc(id)}/approve`),
+    reject: (id: string) => request<AgentAction>("POST", `/agent/actions/${enc(id)}/reject`),
   },
 };

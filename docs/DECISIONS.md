@@ -4,6 +4,21 @@ Scope decisions, newest first. **When a decision here conflicts with another doc
 
 ---
 
+## D-007 — Agentic ops: the agent acts through proposals the owner approves (2026-11-16)
+
+**Context:** D-001 promised an agent that uses Forge's own tools, configures projects it cannot auto-detect, proposes fixes, and watches live apps to recommend a rollback or scale-out. Until now it only wrote a read-only diagnosis.
+
+**Decision:**
+- Every change the agent wants is stored as an `AgentAction` proposal (`agent_actions`, V10): `ROLLBACK`, `REDEPLOY`, `SCALE_OUT` or `UPDATE_SETTINGS`. Its lifecycle is a small state machine: `PROPOSED → APPROVED → EXECUTED | FAILED`, or `REJECTED` / `EXPIRED`. A partial unique index allows only one open proposal per project and type.
+- Only the owner's approval runs it. `ActionExecutor` calls the same public APIs as the dashboard (`DeploymentCommands`, `ProjectSettings`) with the owner's identity, so the agent gains no extra power.
+- **Failure investigator:** with an API key, Claude runs a bounded tool-use loop over `AgentToolbox` (logs, deployment history, traffic, commit diff, plus `propose_*` tools that only record proposals). Without a key, the rules still propose fixes, e.g. a port change for `PORT_MISMATCH`.
+- **Setup agent:** on `UNSUPPORTED_PROJECT`, `RepositoryInspector` checks out the commit, finds the buildable folder and its port, and proposes the settings.
+- **Runtime guardian:** `LiveHealthWatcher` samples each LIVE app's Traefik counters every 30 s, learns a latency baseline, and asks `HealthPolicy` for a verdict.
+
+**Trade-off:** approval adds a click before any fix, which is the guardrail D-001 asked for. The watcher's state is in memory, so after a restart it learns the baseline again.
+
+---
+
 ## D-006 — Canary rollouts with automatic rollback, and replicas (2026-10-31)
 
 **Context:** blue-green only proves that the new version answers its *health path*. A release that is healthy but broken for real visitors (a page that 500s, a slow query) still took 100% of the traffic. And every app ran as one container, so one crash meant downtime until self-healing kicked in.
