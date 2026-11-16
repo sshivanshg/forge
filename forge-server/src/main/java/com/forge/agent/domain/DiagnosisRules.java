@@ -244,7 +244,15 @@ public final class DiagnosisRules {
                         + c.configuredPort()
                         + ").",
                     Confidence.HIGH,
-                    List.of(line)));
+                    List.of(line),
+                    List.of(
+                        ActionPlan.updateSettings(
+                            SettingsPatch.port(actual),
+                            c.commitSha(),
+                            "Set the port to " + actual + " and redeploy",
+                            "The app's own output says it listens on port "
+                                + actual
+                                + ", so Forge should health-check and route to that port."))));
           }
         }
       }

@@ -29,6 +29,13 @@ class DiagnosisRulesTest {
     assertThat(d.summary()).contains("3000").contains("8080");
     assertThat(d.confidence()).isEqualTo(Confidence.HIGH);
     assertThat(d.evidence()).containsExactly("Server listening on port 3000");
+    assertThat(d.proposals())
+        .singleElement()
+        .satisfies(
+            plan -> {
+              assertThat(plan.type()).isEqualTo(com.forge.agent.domain.ActionType.UPDATE_SETTINGS);
+              assertThat(plan.settings().port()).isEqualTo(3000);
+            });
   }
 
   @Test
