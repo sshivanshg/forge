@@ -1,5 +1,7 @@
 package com.forge.agent.application;
 
+import com.forge.agent.domain.ActionPlan;
+import com.forge.agent.domain.ActionSource;
 import com.forge.agent.domain.Diagnosis;
 import com.forge.agent.domain.FailureContext;
 import com.forge.agent.domain.Insight;
@@ -48,6 +50,8 @@ public class FailureInvestigator {
   private final LogSink logSink;
   private final InsightRepository insights;
   private final AgentProperties properties;
+  private final AgentActionService actions;
+  private final RepositoryInspector inspector;
   private final Clock clock;
 
   public FailureInvestigator(
@@ -58,6 +62,8 @@ public class FailureInvestigator {
       LogSink logSink,
       InsightRepository insights,
       AgentProperties properties,
+      AgentActionService actions,
+      RepositoryInspector inspector,
       Clock clock) {
     this.engines = engines;
     this.deployments = deployments;
@@ -66,6 +72,8 @@ public class FailureInvestigator {
     this.logSink = logSink;
     this.insights = insights;
     this.properties = properties;
+    this.actions = actions;
+    this.inspector = inspector;
     this.clock = clock;
   }
 
@@ -98,10 +106,36 @@ public class FailureInvestigator {
             LogSource.SYSTEM,
             "🤖 Forge agent (" + engine.name() + "): " + diagnosis.get().summary());
         log.info("Agent diagnosed {} as {}", deploymentId, diagnosis.get().category());
+        proposeFixes(context, diagnosis.get());
         return insight;
       }
     }
     throw new IllegalStateException("No diagnosis engine produced an answer");
+  }
+
+  /**
+   * Store what the engine proposed, and for an undetectable project let the agent inspect the
+   * repository. Proposals are best effort: a failure here never loses the insight.
+   */
+  private void proposeFixes(FailureContext context, Diagnosis diagnosis) {
+    UUID projectId = deployments.get(context.deploymentId()).projectId();
+    try {
+      for (ActionPlan plan : diagnosis.proposals()) {
+        actions.propose(
+            projectId, context.deploymentId(), ActionSource.FAILURE_INVESTIGATION, plan);
+      }
+      if (context.failedWith("UNSUPPORTED_PROJECT") && properties.autoConfigure()) {
+        inspector
+            .proposeSetup(projects.get(projectId), context.commitSha())
+            .ifPresent(
+                plan ->
+                    actions.propose(
+                        projectId, context.deploymentId(), ActionSource.AUTO_CONFIGURE, plan));
+      }
+    } catch (RuntimeException e) {
+      log.warn(
+          "Agent could not store proposals for {}: {}", context.deploymentId(), e.getMessage());
+    }
   }
 
   FailureContext observe(UUID deploymentId) {
