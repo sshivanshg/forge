@@ -283,7 +283,12 @@ class AgentToolbox {
     schema.put("type", "object");
     schema.put("properties", properties);
     schema.put("required", required);
-    return Map.of("name", name, "description", description, "input_schema", schema);
+    if (!SUBMIT.equals(name)) {
+      return Map.of("name", name, "description", description, "input_schema", schema);
+    }
+    // The diagnosis is parsed field by field, so its shape is enforced by the API.
+    schema.put("additionalProperties", false);
+    return Map.of("name", name, "description", description, "input_schema", schema, "strict", true);
   }
 
   /** State of one investigation. Not shared between threads. */

@@ -34,6 +34,12 @@ class ClaudeDiagnosisEngine implements DiagnosisEngine {
 
   private static final Logger log = LoggerFactory.getLogger(ClaudeDiagnosisEngine.class);
 
+  /** Thinking is always on for current models and counts against this limit. */
+  private static final int MAX_TOKENS = 8000;
+
+  private static final String FINAL_TURN =
+      "This is your final turn: call submit_diagnosis now with your best answer.";
+
   private static final String SYSTEM_PROMPT =
       """
       You are the Forge deployment agent. A user's deployment failed on Forge, a platform that
@@ -89,14 +95,24 @@ class ClaudeDiagnosisEngine implements DiagnosisEngine {
       AgentToolbox.Session session =
           toolbox.open(context.deploymentId(), projectId, context.commitSha());
       List<Map<String, Object>> messages = new ArrayList<>();
-      messages.add(Map.of("role", "user", "content", describe(context)));
+      String opening = describe(context);
+      if (properties.maxToolCalls() == 0) {
+        opening = opening + "\n\n" + FINAL_TURN;
+      }
+      messages.add(Map.of("role", "user", "content", opening));
       for (int turn = 0; turn <= properties.maxToolCalls(); turn++) {
-        boolean last = turn == properties.maxToolCalls();
-        JsonNode response = send(messages, last);
+        JsonNode response = send(messages);
         if (response == null) {
           log.warn(
               "LLM diagnosis of {} got an empty response, falling back to rules",
               context.deploymentId());
+          return Optional.empty();
+        }
+        if ("refusal".equals(response.path("stop_reason").asText())) {
+          log.warn(
+              "LLM diagnosis of {} was declined by the model ({}), falling back to rules",
+              context.deploymentId(),
+              response.path("stop_details").path("category").asText("no category"));
           return Optional.empty();
         }
         JsonNode content = response.path("content");
@@ -126,6 +142,10 @@ class ClaudeDiagnosisEngine implements DiagnosisEngine {
               response.path("stop_reason").asText());
           return Optional.empty();
         }
+        if (turn + 1 == properties.maxToolCalls()) {
+          // Forced tool_choice is rejected by current models, so the last turn is steered by text.
+          results.add(Map.of("type", "text", "text", FINAL_TURN));
+        }
         messages.add(Map.of("role", "user", "content", results));
       }
       log.warn(
@@ -139,8 +159,7 @@ class ClaudeDiagnosisEngine implements DiagnosisEngine {
     }
   }
 
-  /** On the last turn the model must submit, so the loop always ends with an answer or empty. */
-  private JsonNode send(List<Map<String, Object>> messages, boolean mustSubmit) {
+  private JsonNode send(List<Map<String, Object>> messages) {
     return http.post()
         .uri("/v1/messages")
         .header("x-api-key", properties.anthropicApiKey())
@@ -150,15 +169,15 @@ class ClaudeDiagnosisEngine implements DiagnosisEngine {
                 "model",
                 properties.model(),
                 "max_tokens",
-                2048,
+                MAX_TOKENS,
+                "output_config",
+                Map.of("effort", "medium"),
                 "system",
                 SYSTEM_PROMPT,
                 "tools",
                 AgentToolbox.definitions(),
                 "tool_choice",
-                mustSubmit
-                    ? Map.of("type", "tool", "name", AgentToolbox.SUBMIT)
-                    : Map.of("type", "auto"),
+                Map.of("type", "auto"),
                 "messages",
                 messages))
         .retrieve()
